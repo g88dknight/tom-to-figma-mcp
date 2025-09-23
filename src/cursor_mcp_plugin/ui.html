@@ -2,7 +2,7 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>Cursor MCP Plugin</title>
+    <title>Tom Talk to Figma MCP Plugin</title>
     <style>
       body {
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
@@ -179,8 +179,8 @@
           />
         </div>
         <div class="header-text">
-          <h1>Cursor Talk To Figma Plugin</h1>
-          <p>Connect Figma to Cursor AI using MCP</p>
+          <h1>Tom Talk to Figma MCP Plugin</h1>
+          <p>Connect Figma to the Tom Talk to Figma MCP server</p>
         </div>
       </div>
 
@@ -191,22 +191,25 @@
 
       <div id="content-connection" class="tab-content active">
         <div class="section">
-          <label for="port">WebSocket Server Port</label>
+          <label for="socket-url">WebSocket Server URL</label>
           <div style="display: flex; gap: 8px">
             <input
-              type="number"
-              id="port"
-              placeholder="3055"
-              value="3055"
-              min="1024"
-              max="65535"
+              type="text"
+              id="socket-url"
+              placeholder="wss://tom-talk-to-figma-mcp.up.railway.app"
+              value=""
+              inputmode="url"
             />
             <button id="btn-connect" class="primary">Connect</button>
           </div>
+          <p style="margin-top: 8px; font-size: 12px; color: #9ca3af;">
+            Use secure <code>wss://</code> URLs for hosted deployments. You can override
+            this value for local testing.
+          </p>
         </div>
 
         <div id="connection-status" class="status disconnected">
-          Not connected to Cursor MCP server
+          Not connected to Tom Talk to Figma MCP server
         </div>
 
         <div class="section">
@@ -231,13 +234,13 @@
 
       <div id="content-about" class="tab-content">
         <div class="section">
-          <h2>About Cursor Talk To Figma Plugin</h2>
+          <h2>About Tom Talk to Figma MCP Plugin</h2>
           <p>
-            This plugin allows Cursor AI to communicate with Figma, enabling
+            This plugin allows the Tom Talk to Figma MCP server to communicate with Figma, enabling
             AI-assisted design operations.
             <a
               class="link"
-              onclick="window.open(`https://github.com/grab/cursor-talk-to-figma-mcp`, '_blank')"
+              onclick="window.open(`https://github.com/grab/tom-talk-to-figma-mcp`, '_blank')"
               >Github</a
             >
           </p>
@@ -245,29 +248,36 @@
 
           <h2>How to Use</h2>
           <ol>
-            <li>Make sure the MCP server is running in Cursor</li>
-            <li>Connect to the server using the port number (default: 3055)</li>
-            <li>Once connected, you can interact with Figma through Cursor</li>
+            <li>Make sure the Tom Talk to Figma MCP server is running</li>
+            <li>Connect to the relay using your socket URL (ws:// or wss://)</li>
+            <li>Once connected, you can interact with Figma through Tom Talk to Figma MCP</li>
           </ol>
         </div>
       </div>
     </div>
 
     <script>
+      const DEFAULT_SOCKET_URL =
+        window.DEFAULT_SOCKET_URL || "wss://tom-talk-to-figma-mcp.up.railway.app";
+
       // WebSocket connection state
       const state = {
         connected: false,
         socket: null,
-        serverPort: 3055,
+        serverUrl: DEFAULT_SOCKET_URL,
         pendingRequests: new Map(),
         channel: null,
       };
 
       // UI Elements
-      const portInput = document.getElementById("port");
+      const socketInput = document.getElementById("socket-url");
       const connectButton = document.getElementById("btn-connect");
       const disconnectButton = document.getElementById("btn-disconnect");
       const connectionStatus = document.getElementById("connection-status");
+
+      if (socketInput) {
+        socketInput.value = state.serverUrl;
+      }
 
       // Tabs
       const tabs = document.querySelectorAll(".tab");
@@ -283,30 +293,76 @@
       // Initialize UI
       function updateConnectionStatus(isConnected, message) {
         state.connected = isConnected;
-        connectionStatus.innerHTML =
-          message ||
-          (isConnected
-            ? "Connected to Cursor MCP server"
-            : "Not connected to Cursor MCP server");
+        const defaultMessage = isConnected
+          ? `Connected to Tom Talk to Figma MCP server at ${state.serverUrl}`
+          : "Not connected to Tom Talk to Figma MCP server";
+        connectionStatus.innerHTML = message || defaultMessage;
         connectionStatus.className = `status ${
           isConnected ? "connected" : "disconnected"
         }`;
 
         connectButton.disabled = isConnected;
         disconnectButton.disabled = !isConnected;
-        portInput.disabled = isConnected;
+        if (socketInput) {
+          socketInput.disabled = isConnected;
+        }
+      }
+
+      function normalizeSocketUrl(rawValue) {
+        if (!rawValue) {
+          return DEFAULT_SOCKET_URL;
+        }
+
+        const trimmed = rawValue.trim();
+        if (!trimmed) {
+          return DEFAULT_SOCKET_URL;
+        }
+
+        if (trimmed.startsWith("ws://") || trimmed.startsWith("wss://")) {
+          return trimmed;
+        }
+
+        if (trimmed.startsWith("https://")) {
+          return `wss://${trimmed.slice("https://".length)}`;
+        }
+
+        if (trimmed.startsWith("http://")) {
+          return `ws://${trimmed.slice("http://".length)}`;
+        }
+
+        if (/^\d+$/.test(trimmed)) {
+          return `ws://127.0.0.1:${trimmed}`;
+        }
+
+        if (!trimmed.includes("://")) {
+          return `ws://${trimmed}`;
+        }
+
+        return trimmed;
       }
 
       // Connect to WebSocket server
-      async function connectToServer(port) {
+      async function connectToServer(socketUrl) {
         try {
           if (state.connected && state.socket) {
             updateConnectionStatus(true, "Already connected to server");
             return;
           }
 
-          state.serverPort = port;
-          state.socket = new WebSocket(`ws://localhost:${port}`);
+          const normalizedUrl = normalizeSocketUrl(socketUrl || state.serverUrl);
+          state.serverUrl = normalizedUrl;
+
+          parent.postMessage(
+            {
+              pluginMessage: {
+                type: "update-settings",
+                socketUrl: state.serverUrl,
+              },
+            },
+            "*"
+          );
+
+          state.socket = new WebSocket(normalizedUrl);
 
           state.socket.onopen = () => {
             // Generate random channel name
@@ -335,7 +391,7 @@
                   const channelName = data.channel;
                   updateConnectionStatus(
                     true,
-                    `Connected to server on port ${port} in channel: <strong>${channelName}</strong>`
+                    `Connected to server at ${state.serverUrl} in channel: <strong>${channelName}</strong>`
                   );
 
                   // Notify the plugin code
@@ -343,7 +399,7 @@
                     {
                       pluginMessage: {
                         type: "notify",
-                        message: `Connected to Cursor MCP server on port ${port} in channel: ${channelName}`,
+                        message: `Connected to Tom Talk to Figma MCP server at ${state.serverUrl} in channel: ${channelName}`,
                       },
                     },
                     "*"
@@ -543,10 +599,15 @@
 
       // Connect to server
       connectButton.addEventListener("click", () => {
-        const port = parseInt(portInput.value, 10) || 3055;
+        const rawValue = socketInput ? socketInput.value : state.serverUrl;
+        const normalizedUrl = normalizeSocketUrl(rawValue);
+        if (socketInput) {
+          socketInput.value = normalizedUrl;
+        }
+
         updateConnectionStatus(false, "Connecting...");
         connectionStatus.className = "status info";
-        connectToServer(port);
+        connectToServer(normalizedUrl);
       });
 
       // Disconnect from server
@@ -634,8 +695,18 @@
           case "connection-status":
             updateConnectionStatus(message.connected, message.message);
             break;
+          case "init-settings":
+            if (message.settings && message.settings.socketUrl) {
+              state.serverUrl = message.settings.socketUrl;
+            } else {
+              state.serverUrl = DEFAULT_SOCKET_URL;
+            }
+            if (socketInput) {
+              socketInput.value = state.serverUrl;
+            }
+            break;
           case "auto-connect":
-            connectButton.click();
+            connectToServer(state.serverUrl);
             break;
           case "auto-disconnect":
             disconnectButton.click();

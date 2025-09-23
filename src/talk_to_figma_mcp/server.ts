@@ -2,9 +2,12 @@
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { z } from "zod";
 import WebSocket from "ws";
 import { v4 as uuidv4 } from "uuid";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
 
 // Define TypeScript interfaces for Figma responses
 interface FigmaResponse {
@@ -75,15 +78,143 @@ let currentChannel: string | null = null;
 
 // Create MCP server
 const server = new McpServer({
-  name: "TalkToFigmaMCP",
+  name: "TomTalkToFigmaMCP",
   version: "1.0.0",
 });
 
 // Add command line argument parsing
-const args = process.argv.slice(2);
-const serverArg = args.find(arg => arg.startsWith('--server='));
-const serverUrl = serverArg ? serverArg.split('=')[1] : 'localhost';
-const WS_URL = serverUrl === 'localhost' ? `ws://${serverUrl}` : `wss://${serverUrl}`;
+const cliArgs = process.argv.slice(2);
+
+const flagMap = cliArgs.reduce<Map<string, string>>((map, arg) => {
+  if (!arg.startsWith("--")) {
+    return map;
+  }
+
+  const [key, value] = arg.slice(2).split("=");
+  if (key) {
+    map.set(key, value ?? "");
+  }
+  return map;
+}, new Map());
+
+function getFlagValue(name: string): string | undefined {
+  if (flagMap.has(name)) {
+    const value = flagMap.get(name);
+    return value && value.length > 0 ? value : undefined;
+  }
+  return undefined;
+}
+
+function normalizeSocketUrl(raw?: string | null): string {
+  const fallback = "ws://127.0.0.1:3055";
+  if (!raw) {
+    return fallback;
+  }
+
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    return fallback;
+  }
+
+  if (trimmed.startsWith("ws://") || trimmed.startsWith("wss://")) {
+    return trimmed;
+  }
+
+  if (trimmed.startsWith("https://")) {
+    return `wss://${trimmed.slice("https://".length)}`;
+  }
+
+  if (trimmed.startsWith("http://")) {
+    return `ws://${trimmed.slice("http://".length)}`;
+  }
+
+  if (/^\d+$/.test(trimmed)) {
+    return `ws://127.0.0.1:${trimmed}`;
+  }
+
+  if (/^[\w.-]+(:\d+)?(\/.*)?$/.test(trimmed)) {
+    return `ws://${trimmed}`;
+  }
+
+  return trimmed;
+}
+
+function formatAuthHeader(token?: string | null): string | undefined {
+  if (!token) {
+    return undefined;
+  }
+
+  const trimmed = token.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+
+  return trimmed.startsWith("Bearer ") ? trimmed : `Bearer ${trimmed}`;
+}
+
+function parseList(value?: string | null): string[] {
+  if (!value) {
+    return [];
+  }
+
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0);
+}
+
+function parseInteger(value: string | undefined, fallback: number): number {
+  if (!value) {
+    return fallback;
+  }
+
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+const figmaSocketUrl = normalizeSocketUrl(
+  getFlagValue("figma-socket-url") ?? process.env.FIGMA_SOCKET_URL ?? undefined
+);
+
+const figmaSocketChannelRaw = getFlagValue("figma-socket-channel") ?? process.env.FIGMA_SOCKET_CHANNEL ?? "";
+const figmaSocketChannel = figmaSocketChannelRaw.trim();
+const defaultChannel = figmaSocketChannel.length > 0 ? figmaSocketChannel : null;
+
+const figmaSocketAuthTokenHeader = formatAuthHeader(
+  getFlagValue("figma-socket-auth-token") ?? process.env.FIGMA_SOCKET_AUTH_TOKEN ?? undefined
+);
+
+const allowedOriginsRaw = getFlagValue("allowed-origins") ?? process.env.ALLOWED_ORIGINS ?? "";
+const allowedOrigins = parseList(allowedOriginsRaw);
+
+const allowedHostsRaw = getFlagValue("allowed-hosts") ?? process.env.ALLOWED_HOSTS ?? "";
+const allowedHosts = parseList(allowedHostsRaw);
+
+const serverMode = (getFlagValue("mode") ?? process.env.TOM_TALK_TO_FIGMA_MODE ?? process.env.MCP_TRANSPORT ?? "stdio").toLowerCase();
+const httpPort = parseInteger(getFlagValue("port") ?? process.env.PORT, 3000);
+const httpHost =
+  getFlagValue("http-host") ??
+  getFlagValue("host") ??
+  process.env.HTTP_HOST ??
+  process.env.HOST ??
+  "0.0.0.0";
+const httpPath = getFlagValue("http-path") ?? process.env.MCP_HTTP_PATH ?? "/mcp";
+const healthPath = getFlagValue("health-path") ?? process.env.MCP_HEALTH_PATH ?? "/healthz";
+
+logger.info(`Using Figma socket URL: ${figmaSocketUrl}`);
+if (defaultChannel) {
+  logger.info(`Default Figma socket channel: ${defaultChannel}`);
+}
+if (figmaSocketAuthTokenHeader) {
+  logger.info('Using configured socket auth token for Figma socket');
+}
+logger.info(`Server mode: ${serverMode}`);
+if (allowedOrigins.length > 0) {
+  logger.info(`Allowed origins: ${allowedOrigins.join(", ")}`);
+}
+if (allowedHosts.length > 0) {
+  logger.info(`Allowed hosts: ${allowedHosts.join(", ")}`);
+}
 
 // Document Info Tool
 server.tool(
@@ -2829,21 +2960,34 @@ function processFigmaNodeResponse(result: unknown): any {
 }
 
 // Update the connectToFigma function
-function connectToFigma(port: number = 3055) {
+function connectToFigma() {
   // If already connected, do nothing
   if (ws && ws.readyState === WebSocket.OPEN) {
     logger.info('Already connected to Figma');
     return;
   }
 
-  const wsUrl = serverUrl === 'localhost' ? `${WS_URL}:${port}` : WS_URL;
-  logger.info(`Connecting to Figma socket server at ${wsUrl}...`);
-  ws = new WebSocket(wsUrl);
+  const socketOptions = figmaSocketAuthTokenHeader
+    ? { headers: { Authorization: figmaSocketAuthTokenHeader } }
+    : undefined;
 
-  ws.on('open', () => {
+  logger.info(`Connecting to Figma socket server at ${figmaSocketUrl}...`);
+  ws = socketOptions ? new WebSocket(figmaSocketUrl, socketOptions) : new WebSocket(figmaSocketUrl);
+
+  ws.on('open', async () => {
     logger.info('Connected to Figma socket server');
     // Reset channel on new connection
     currentChannel = null;
+
+    if (defaultChannel) {
+      try {
+        await joinChannel(defaultChannel);
+      } catch (error) {
+        logger.warn(
+          `Failed to auto join default channel ${defaultChannel}: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+    }
   });
 
   ws.on("message", (data: any) => {
@@ -2937,6 +3081,7 @@ function connectToFigma(port: number = 3055) {
   ws.on('close', () => {
     logger.info('Disconnected from Figma socket server');
     ws = null;
+    currentChannel = null;
 
     // Reject all pending requests
     for (const [id, request] of pendingRequests.entries()) {
@@ -2947,20 +3092,30 @@ function connectToFigma(port: number = 3055) {
 
     // Attempt to reconnect
     logger.info('Attempting to reconnect in 2 seconds...');
-    setTimeout(() => connectToFigma(port), 2000);
+    setTimeout(connectToFigma, 2000);
   });
 }
 
 // Function to join a channel
 async function joinChannel(channelName: string): Promise<void> {
+  const targetChannel = (channelName ?? "").trim() || defaultChannel;
+  if (!targetChannel) {
+    throw new Error("Channel name is required");
+  }
+
+  if (currentChannel === targetChannel) {
+    logger.info(`Already joined channel: ${targetChannel}`);
+    return;
+  }
+
   if (!ws || ws.readyState !== WebSocket.OPEN) {
     throw new Error("Not connected to Figma");
   }
 
   try {
-    await sendCommandToFigma("join", { channel: channelName });
-    currentChannel = channelName;
-    logger.info(`Joined channel: ${channelName}`);
+    await sendCommandToFigma("join", { channel: targetChannel });
+    currentChannel = targetChannel;
+    logger.info(`Joined channel: ${targetChannel}`);
   } catch (error) {
     logger.error(`Failed to join channel: ${error instanceof Error ? error.message : String(error)}`);
     throw error;
@@ -2968,25 +3123,29 @@ async function joinChannel(channelName: string): Promise<void> {
 }
 
 // Function to send commands to Figma
-function sendCommandToFigma(
+async function sendCommandToFigma(
   command: FigmaCommand,
   params: unknown = {},
   timeoutMs: number = 30000
 ): Promise<unknown> {
-  return new Promise((resolve, reject) => {
-    // If not connected, try to connect first
-    if (!ws || ws.readyState !== WebSocket.OPEN) {
-      connectToFigma();
-      reject(new Error("Not connected to Figma. Attempting to connect..."));
-      return;
-    }
+  // If not connected, try to connect first
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    connectToFigma();
+    throw new Error("Not connected to Figma. Attempting to connect...");
+  }
 
-    // Check if we need a channel for this command
-    const requiresChannel = command !== "join";
-    if (requiresChannel && !currentChannel) {
-      reject(new Error("Must join a channel before sending commands"));
-      return;
+  // Check if we need a channel for this command
+  const requiresChannel = command !== "join";
+  if (requiresChannel && !currentChannel) {
+    if (defaultChannel) {
+      logger.info(`No active channel detected. Attempting to join default channel: ${defaultChannel}`);
+      await joinChannel(defaultChannel);
+    } else {
+      throw new Error("Must join a channel before sending commands");
     }
+  }
+
+  return new Promise((resolve, reject) => {
 
     const id = uuidv4();
     const request = {
@@ -3034,12 +3193,24 @@ server.tool(
   "join_channel",
   "Join a specific channel to communicate with Figma",
   {
-    channel: z.string().describe("The name of the channel to join").default(""),
+    channel: z.string().describe("The name of the channel to join").default(defaultChannel ?? ""),
   },
   async ({ channel }: any) => {
     try {
       if (!channel) {
-        // If no channel provided, ask the user for input
+        if (defaultChannel) {
+          await joinChannel(defaultChannel);
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Successfully joined channel: ${defaultChannel}`,
+              },
+            ],
+          };
+        }
+
+        // If no default channel configured, ask for input
         return {
           content: [
             {
@@ -3077,6 +3248,118 @@ server.tool(
   }
 );
 
+async function startHttpTransport(): Promise<void> {
+  const transport = new StreamableHTTPServerTransport({
+    sessionIdGenerator: undefined,
+  });
+
+  await server.connect(transport);
+  await transport.start();
+
+  const httpServer = createServer(async (req, res) => {
+    try {
+      if (!req.url) {
+        res.writeHead(400, { "content-type": "text/plain" });
+        res.end("Invalid request");
+        return;
+      }
+
+      const originHost = req.headers.host ?? `${httpHost}:${httpPort}`;
+      const requestUrl = new URL(req.url, `http://${originHost}`);
+
+      if (requestUrl.pathname === healthPath) {
+        if (req.method === "GET" || req.method === "HEAD") {
+          res.writeHead(200, { "content-type": "application/json" });
+          if (req.method === "GET") {
+            res.end(JSON.stringify({ status: "ok" }));
+          } else {
+            res.end();
+          }
+          return;
+        }
+
+        res.writeHead(405, { "content-type": "text/plain" });
+        res.end("Method Not Allowed");
+        return;
+      }
+
+      if (requestUrl.pathname === httpPath) {
+        if (allowedOrigins.length > 0) {
+          const originHeader = req.headers.origin;
+          if (originHeader && !allowedOrigins.includes(originHeader)) {
+            res.writeHead(403, { "content-type": "text/plain" });
+            res.end("Forbidden");
+            return;
+          }
+        }
+
+        if (allowedHosts.length > 0) {
+          const hostHeader = (req.headers.host ?? "").split(":")[0];
+          if (hostHeader && !allowedHosts.includes(hostHeader)) {
+            res.writeHead(403, { "content-type": "text/plain" });
+            res.end("Forbidden");
+            return;
+          }
+        }
+
+        await transport.handleRequest(req, res);
+        return;
+      }
+
+      res.writeHead(404, { "content-type": "text/plain" });
+      res.end("Not Found");
+    } catch (error) {
+      logger.error(`HTTP request handling error: ${error instanceof Error ? error.message : String(error)}`);
+
+      if (!res.headersSent) {
+        res.writeHead(500, { "content-type": "text/plain" });
+      }
+      res.end("Internal Server Error");
+    }
+  });
+
+  httpServer.on("error", (error) => {
+    logger.error(`HTTP server error: ${error instanceof Error ? error.message : String(error)}`);
+  });
+
+  await new Promise<void>((resolve) => {
+    httpServer.listen(httpPort, httpHost, () => {
+      const address = httpServer.address() as AddressInfo | string | null;
+      const port = typeof address === "object" && address ? address.port : httpPort;
+      logger.info(`Tom Talk to Figma MCP HTTP server listening on http://${httpHost}:${port}${httpPath}`);
+      logger.info(`Health endpoint available at http://${httpHost}:${port}${healthPath}`);
+      resolve();
+    });
+  });
+
+  let shuttingDown = false;
+  const handleShutdown = async (signal: NodeJS.Signals) => {
+    if (shuttingDown) {
+      return;
+    }
+    shuttingDown = true;
+    logger.info(`Received ${signal}. Shutting down Tom Talk to Figma MCP HTTP server...`);
+
+    await transport.close().catch((error) => {
+      logger.error(`Error closing HTTP transport: ${error instanceof Error ? error.message : String(error)}`);
+    });
+
+    await new Promise<void>((resolve) => {
+      httpServer.close((err) => {
+        if (err) {
+          logger.error(`Error closing HTTP server: ${err instanceof Error ? err.message : String(err)}`);
+        }
+        resolve();
+      });
+    });
+
+    process.exit(0);
+  };
+
+  process.on("SIGINT", handleShutdown);
+  process.on("SIGTERM", handleShutdown);
+}
+
 // Start the server
 async function main() {
   try {
@@ -3087,17 +3370,17 @@ async function main() {
     logger.warn('Will try to connect when the first command is sent');
   }
 
-  // Start the MCP server with stdio transport
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  logger.info('FigmaMCP server running on stdio');
+  if (serverMode === "http") {
+    await startHttpTransport();
+  } else {
+    const transport = new StdioServerTransport();
+    await server.connect(transport);
+    logger.info('Tom Talk to Figma MCP server running on stdio');
+  }
 }
 
 // Run the server
 main().catch(error => {
-  logger.error(`Error starting FigmaMCP server: ${error instanceof Error ? error.message : String(error)}`);
+  logger.error(`Error starting Tom Talk to Figma MCP server: ${error instanceof Error ? error.message : String(error)}`);
   process.exit(1);
 });
-
-
-

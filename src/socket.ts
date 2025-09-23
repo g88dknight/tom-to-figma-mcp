@@ -1,11 +1,140 @@
 import { Server, ServerWebSocket } from "bun";
 
+const cliArgs = process.argv.slice(2);
+
+const flagMap = cliArgs.reduce<Map<string, string>>((map, arg) => {
+  if (!arg.startsWith("--")) {
+    return map;
+  }
+
+  const [key, value] = arg.slice(2).split("=");
+  if (key) {
+    map.set(key, value ?? "");
+  }
+  return map;
+}, new Map());
+
+function getFlagValue(name: string): string | undefined {
+  if (flagMap.has(name)) {
+    const value = flagMap.get(name);
+    return value && value.length > 0 ? value : undefined;
+  }
+  return undefined;
+}
+
+function parseNumber(value: string | undefined, fallback: number): number {
+  if (!value) {
+    return fallback;
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function parseAllowedOrigins(raw?: string): string[] {
+  if (!raw || raw.trim().length === 0) {
+    return ["*"];
+  }
+
+  return raw
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter((origin) => origin.length > 0);
+}
+
+const port = parseNumber(
+  getFlagValue("port") ?? process.env.FIGMA_SOCKET_PORT ?? process.env.PORT,
+  3055
+);
+
+const host = getFlagValue("host") ?? process.env.FIGMA_SOCKET_HOST ?? "127.0.0.1";
+
+const allowedOriginsInput =
+  getFlagValue("allowed-origins") ?? process.env.ALLOWED_ORIGINS ?? "*";
+const allowedOrigins = parseAllowedOrigins(allowedOriginsInput);
+const allowAllOrigins = allowedOrigins.includes("*");
+
+const expectedAuthToken =
+  getFlagValue("figma-socket-auth-token") ??
+  getFlagValue("auth-token") ??
+  process.env.FIGMA_SOCKET_AUTH_TOKEN ??
+  "";
+
+function normalizeAuthToken(token: string): string {
+  if (!token) {
+    return "";
+  }
+
+  const trimmed = token.trim();
+  if (!trimmed) {
+    return "";
+  }
+
+  return trimmed.startsWith("Bearer ") ? trimmed : `Bearer ${trimmed}`;
+}
+
+const expectedAuthHeader = normalizeAuthToken(expectedAuthToken);
+
+const LOG_PREFIX = "[Tom Talk to Figma MCP socket]";
+
+function isOriginAllowed(origin: string | null): boolean {
+  if (!origin || origin.length === 0) {
+    return true;
+  }
+  return allowAllOrigins || allowedOrigins.includes(origin);
+}
+
+function resolveAllowOrigin(origin: string | null): string {
+  if (allowAllOrigins) {
+    return origin ?? "*";
+  }
+
+  if (origin && allowedOrigins.includes(origin)) {
+    return origin;
+  }
+
+  return allowedOrigins[0] ?? "";
+}
+
+function buildCorsHeaders(origin: string | null): Record<string, string> {
+  const allowOrigin = resolveAllowOrigin(origin);
+  const headers: Record<string, string> = {
+    "Access-Control-Allow-Origin": allowOrigin || "*",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  };
+
+  if (!allowAllOrigins) {
+    headers["Vary"] = "Origin";
+  }
+
+  return headers;
+}
+
+function isAuthorized(req: Request): boolean {
+  if (!expectedAuthHeader) {
+    return true;
+  }
+
+  const authHeader = req.headers.get("authorization") ?? "";
+  if (!authHeader) {
+    return false;
+  }
+
+  if (authHeader === expectedAuthHeader) {
+    return true;
+  }
+
+  // Accept raw token without Bearer prefix as a convenience
+  const rawToken = expectedAuthHeader.replace(/^Bearer\s+/i, "");
+  return authHeader === rawToken || authHeader === `Bearer ${rawToken}`;
+}
+
 // Store clients by channel
 const channels = new Map<string, Set<ServerWebSocket<any>>>();
 
 function handleConnection(ws: ServerWebSocket<any>) {
   // Don't add to clients immediately - wait for channel join
-  console.log("New client connected");
+  console.log(`${LOG_PREFIX} New client connected`);
 
   // Send welcome message to the new client
   ws.send(JSON.stringify({
@@ -14,7 +143,7 @@ function handleConnection(ws: ServerWebSocket<any>) {
   }));
 
   ws.close = () => {
-    console.log("Client disconnected");
+    console.log(`${LOG_PREFIX} Client disconnected`);
 
     // Remove client from their channel
     channels.forEach((clients, channelName) => {
@@ -37,26 +166,36 @@ function handleConnection(ws: ServerWebSocket<any>) {
 }
 
 const server = Bun.serve({
-  port: 3055,
-  // uncomment this to allow connections in windows wsl
-  // hostname: "0.0.0.0",
+  port,
+  hostname: host,
   fetch(req: Request, server: Server) {
-    // Handle CORS preflight
+    const origin = req.headers.get("origin");
+
+    if (!isOriginAllowed(origin)) {
+      console.warn(`${LOG_PREFIX} Blocked connection from disallowed origin:`, origin);
+      return new Response("Forbidden", {
+        status: 403,
+        headers: buildCorsHeaders(origin),
+      });
+    }
+
     if (req.method === "OPTIONS") {
       return new Response(null, {
-        headers: {
-          "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-          "Access-Control-Allow-Headers": "Content-Type, Authorization",
-        },
+        headers: buildCorsHeaders(origin),
+      });
+    }
+
+    if (!isAuthorized(req)) {
+      console.warn(`${LOG_PREFIX} Unauthorized connection attempt`);
+      return new Response("Unauthorized", {
+        status: 401,
+        headers: buildCorsHeaders(origin),
       });
     }
 
     // Handle WebSocket upgrade
     const success = server.upgrade(req, {
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-      },
+      headers: buildCorsHeaders(origin),
     });
 
     if (success) {
@@ -64,17 +203,15 @@ const server = Bun.serve({
     }
 
     // Return response for non-WebSocket requests
-    return new Response("WebSocket server running", {
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-      },
+    return new Response("Tom Talk to Figma MCP socket relay", {
+      headers: buildCorsHeaders(origin),
     });
   },
   websocket: {
     open: handleConnection,
     message(ws: ServerWebSocket<any>, message: string | Buffer) {
       try {
-        console.log("Received message from client:", message);
+        console.log(`${LOG_PREFIX} Received message from client:`, message);
         const data = JSON.parse(message as string);
 
         if (data.type === "join") {
@@ -103,7 +240,7 @@ const server = Bun.serve({
             channel: channelName
           }));
 
-          console.log("Sending message to client:", data.id);
+          console.log(`${LOG_PREFIX} Sending message to client:`, data.id);
 
           ws.send(JSON.stringify({
             type: "system",
@@ -150,7 +287,7 @@ const server = Bun.serve({
           // Broadcast to all clients in the channel
           channelClients.forEach((client) => {
             if (client.readyState === WebSocket.OPEN) {
-              console.log("Broadcasting message to client:", data.message);
+              console.log(`${LOG_PREFIX} Broadcasting message to client:`, data.message);
               client.send(JSON.stringify({
                 type: "broadcast",
                 message: data.message,
@@ -161,7 +298,7 @@ const server = Bun.serve({
           });
         }
       } catch (err) {
-        console.error("Error handling message:", err);
+        console.error(`${LOG_PREFIX} Error handling message:`, err);
       }
     },
     close(ws: ServerWebSocket<any>) {
@@ -172,5 +309,13 @@ const server = Bun.serve({
     }
   }
 });
+console.log(`${LOG_PREFIX} Listening on ${host}:${server.port}`);
+if (!allowAllOrigins) {
+  console.log(`${LOG_PREFIX} Allowed origins: ${allowedOrigins.join(", ")}`);
+} else {
+  console.log(`${LOG_PREFIX} Allowing all origins`);
+}
 
-console.log(`WebSocket server running on port ${server.port}`);
+if (expectedAuthHeader) {
+  console.log(`${LOG_PREFIX} Expecting Authorization header for connections`);
+}

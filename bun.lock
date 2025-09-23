@@ -2,7 +2,7 @@
   "lockfileVersion": 1,
   "workspaces": {
     "": {
-      "name": "cursor-talk-to-figma-mcp",
+      "name": "tom-talk-to-figma-mcp",
       "dependencies": {
         "@modelcontextprotocol/sdk": "1.13.1",
         "uuid": "latest",

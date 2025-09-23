@@ -4,13 +4,19 @@ FROM oven/bun:latest
 # Set the working directory in the container
 WORKDIR /app
 
-# Copy the current directory contents into the container at /app
-COPY package*.json ./
+# Copy dependency definitions first for better caching
+COPY package.json bun.lock ./
 
 RUN bun install
 
-# Expose the port on which the API will listen
-EXPOSE 3055
+# Copy application source
+COPY . .
 
-# Run the server when the container launches
-CMD ["bun", "src/talk_to_figma_mcp/server.ts"]
+# Build the TypeScript sources
+RUN bun run build
+
+# Expose the HTTP port (overridable via PORT env)
+EXPOSE 3000
+
+# Run the compiled server in HTTP mode
+CMD ["bun", "run", "dist/server.js", "--mode=http"]

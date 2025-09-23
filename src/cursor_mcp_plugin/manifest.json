@@ -1,6 +1,6 @@
 {
-  "name": "Cursor MCP Plugin",
-  "id": "cursor-mcp-plugin",
+  "name": "Tom Talk to Figma MCP Plugin",
+  "id": "tom-talk-to-figma-mcp-plugin",
   "api": "1.0.0",
   "main": "code.js",
   "ui": "ui.html",
@@ -11,11 +11,12 @@
   "permissions": [],
   "networkAccess": {
     "allowedDomains": [
-      "https://google.com"
+      "https://tom-talk-to-figma-mcp.up.railway.app",
+      "wss://tom-talk-to-figma-mcp.up.railway.app"
     ],
     "devAllowedDomains": [
-      "http://localhost:3055",
-      "ws://localhost:3055"
+      "http://127.0.0.1:3055",
+      "ws://127.0.0.1:3055"
     ]
   },
   "documentAccess": "dynamic-page",

@@ -1,9 +1,11 @@
-// This is the main code file for the Cursor MCP Figma plugin
+// This is the main code file for the Tom Talk to Figma MCP plugin
 // It handles Figma API commands
+
+const DEFAULT_SOCKET_URL = "wss://tom-talk-to-figma-mcp.up.railway.app";
 
 // Plugin state
 const state = {
-  serverPort: 3055, // Default port
+  socketUrl: DEFAULT_SOCKET_URL,
 };
 
 
@@ -93,12 +95,12 @@ figma.on("run", ({ command }) => {
 
 // Update plugin settings
 function updateSettings(settings) {
-  if (settings.serverPort) {
-    state.serverPort = settings.serverPort;
+  if (settings.socketUrl) {
+    state.socketUrl = settings.socketUrl;
   }
 
   figma.clientStorage.setAsync("settings", {
-    serverPort: state.serverPort,
+    socketUrl: state.socketUrl,
   });
 }
 
@@ -1396,8 +1398,8 @@ async function setTextContent(params) {
   try {
     const savedSettings = await figma.clientStorage.getAsync("settings");
     if (savedSettings) {
-      if (savedSettings.serverPort) {
-        state.serverPort = savedSettings.serverPort;
+      if (savedSettings.socketUrl) {
+        state.socketUrl = savedSettings.socketUrl;
       }
     }
 
@@ -1405,7 +1407,7 @@ async function setTextContent(params) {
     figma.ui.postMessage({
       type: "init-settings",
       settings: {
-        serverPort: state.serverPort,
+        socketUrl: state.socketUrl,
       },
     });
   } catch (error) {
