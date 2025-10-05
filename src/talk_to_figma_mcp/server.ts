@@ -3254,7 +3254,7 @@ async function startHttpTransport(): Promise<void> {
   });
 
   await server.connect(transport);
-  await transport.start();
+  // await transport.start(); // Already started by server.connect()
 
   const httpServer = createServer(async (req, res) => {
     try {
