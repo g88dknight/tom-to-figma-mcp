@@ -11,12 +11,16 @@
   "permissions": [],
   "networkAccess": {
     "allowedDomains": [
-      "https://tom-talk-to-figma-mcp.up.railway.app",
-      "wss://tom-talk-to-figma-mcp.up.railway.app"
+      "https://relay-production-bcbf.up.railway.app",
+      "wss://relay-production-bcbf.up.railway.app",
+      "https://mcp-server-production-4ddc.up.railway.app",
+      "wss://mcp-server-production-4ddc.up.railway.app"
     ],
     "devAllowedDomains": [
-      "http://127.0.0.1:3055",
-      "ws://127.0.0.1:3055"
+      "https://localhost:3055",
+      "wss://localhost:3055",
+      "https://127.0.0.1:3055",
+      "wss://127.0.0.1:3055"
     ]
   },
   "documentAccess": "dynamic-page",
