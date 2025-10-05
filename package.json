@@ -13,7 +13,8 @@
   ],
   "type": "module",
   "scripts": {
-    "start": "bun run build && bun run dist/server.js --mode=http",
+    "start": "./start.sh",
+    "start:mcp": "bun run build && bun run dist/server.js --mode=http",
     "start:stdio": "bun run build && bun run dist/server.js",
     "socket": "bun run src/socket.ts",
     "socket:hosted": "./scripts/socket-hosted.sh",

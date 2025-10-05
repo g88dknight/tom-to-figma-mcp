@@ -1,5 +1,5 @@
-# Use the Bun image as the base image
-FROM oven/bun:latest
+# Use the Bun image as the base image (debian variant has bash)
+FROM oven/bun:1-debian
 
 # Set the working directory in the container
 WORKDIR /app
@@ -18,5 +18,9 @@ RUN bun run build
 # Expose the HTTP port (overridable via PORT env)
 EXPOSE 3000
 
-# Run the compiled server in HTTP mode
-CMD ["bun", "run", "dist/server.js", "--mode=http"]
+# Copy start script
+COPY start.sh ./
+
+# Run the service based on RAILWAY_SERVICE_NAME
+# Use bash to execute the script since bun might not handle shell scripts well
+CMD ["/bin/bash", "./start.sh"]
