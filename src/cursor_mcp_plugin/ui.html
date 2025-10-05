@@ -2,256 +2,342 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>Tom Talk to Figma MCP Plugin</title>
+    <title>Tom to Figma</title>
     <style>
-      body {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-          Helvetica, Arial, sans-serif;
+      @import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&display=swap');
+
+      * {
         margin: 0;
-        padding: 20px;
-        color: #e0e0e0;
-        background-color: #1e1e1e;
-      }
-      .container {
-        display: flex;
-        flex-direction: column;
-        height: 100%;
-      }
-      h1 {
-        font-size: 16px;
-        font-weight: 600;
-        margin-bottom: 10px;
-        color: #ffffff;
-      }
-      h2 {
-        font-size: 14px;
-        font-weight: 600;
-        margin-top: 20px;
-        margin-bottom: 8px;
-        color: #ffffff;
-      }
-      button {
-        background-color: #18a0fb;
-        border: none;
-        color: white;
-        padding: 8px 12px;
-        border-radius: 6px;
-        margin-top: 8px;
-        margin-bottom: 8px;
-        cursor: pointer;
-        font-size: 14px;
-        transition: background-color 0.2s;
-      }
-      button:hover {
-        background-color: #0d8ee0;
-      }
-      button.secondary {
-        background-color: #3d3d3d;
-        color: #e0e0e0;
-      }
-      button.secondary:hover {
-        background-color: #4d4d4d;
-      }
-      button:disabled {
-        background-color: #333333;
-        color: #666666;
-        cursor: not-allowed;
-      }
-      input {
-        border: 1px solid #444444;
-        border-radius: 4px;
-        padding: 8px;
-        margin-bottom: 12px;
-        font-size: 14px;
-        width: 100%;
+        padding: 0;
         box-sizing: border-box;
-        background-color: #2d2d2d;
-        color: #e0e0e0;
       }
-      label {
-        display: block;
-        margin-bottom: 4px;
-        font-size: 12px;
-        font-weight: 500;
-        color: #cccccc;
+
+      body {
+        font-family: 'Geist', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background-color: #000000;
+        color: #ffffff;
+        padding: 24px;
+        line-height: 1.5;
       }
-      .status {
-        margin-top: 16px;
-        padding: 12px;
-        border-radius: 6px;
-        font-size: 14px;
+
+      .container {
+        max-width: 100%;
       }
-      .status.connected {
-        background-color: #1a472a;
-        color: #4ade80;
-      }
-      .status.disconnected {
-        background-color: #471a1a;
-        color: #ff9999;
-      }
-      .status.info {
-        background-color: #1a3147;
-        color: #66b3ff;
-      }
-      .section {
-        margin-bottom: 24px;
-      }
-      .hidden {
-        display: none;
-      }
-      .logo {
-        width: 50px;
-        height: 50px;
-      }
+
       .header {
         display: flex;
-        align-items: center;
-        margin-bottom: 16px;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 32px;
+        gap: 20px;
       }
-      .header-text {
-        margin-left: 12px;
+
+      .logo-section {
+        flex-shrink: 0;
       }
-      .header-text h1 {
-        margin: 0;
-        font-size: 16px;
+
+      .logo {
+        width: 150px;
+        height: auto;
       }
-      .header-text p {
-        margin: 4px 0 0 0;
-        font-size: 12px;
-        color: #999999;
+
+      .info-section {
+        flex: 1;
+        text-align: right;
       }
-      .tabs {
-        display: flex;
-        border-bottom: 1px solid #444444;
-        margin-bottom: 16px;
-      }
-      .tab {
-        padding: 8px 16px;
-        cursor: pointer;
+
+      .project-name {
         font-size: 14px;
-        font-weight: 500;
-        color: #999999;
+        font-weight: 600;
+        color: #ffffff;
+        margin-bottom: 4px;
       }
-      .tab.active {
-        border-bottom: 2px solid #18a0fb;
-        color: #18a0fb;
-      }
-      .tab-content {
-        display: none;
-      }
-      .tab-content.active {
-        display: block;
-      }
-      .link {
-        color: #18a0fb;
+
+      .project-link {
+        font-size: 12px;
+        color: #22c55e;
         text-decoration: none;
         cursor: pointer;
       }
-      .link:hover {
+
+      .project-link:hover {
         text-decoration: underline;
       }
-      .header-logo {
-        padding: 16px;
-        border-radius: 16px;
-        background-color: #333;
+
+      h2 {
+        font-size: 16px;
+        font-weight: 600;
+        margin-bottom: 16px;
+        color: #ffffff;
       }
-      .header-logo-image {
-        width: 24px;
-        height: 24px;
-        object-fit: contain;
+
+      .section {
+        margin-bottom: 32px;
       }
-      /* Progress styles */
+
+      .how-to-use {
+        background-color: #0a0a0a;
+        border: 1px solid #1a1a1a;
+        border-radius: 8px;
+        padding: 20px;
+      }
+
+      .how-to-use ol {
+        margin-left: 20px;
+        color: #a0a0a0;
+      }
+
+      .how-to-use li {
+        margin-bottom: 8px;
+        font-size: 14px;
+      }
+
+      .connection-section {
+        background-color: #0a0a0a;
+        border: 1px solid #1a1a1a;
+        border-radius: 8px;
+        padding: 20px;
+      }
+
+      .input-group {
+        margin-bottom: 16px;
+      }
+
+      label {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 13px;
+        font-weight: 500;
+        color: #e0e0e0;
+      }
+
+      input {
+        width: 100%;
+        background-color: #0a0a0a;
+        border: 1px solid #2a2a2a;
+        border-radius: 6px;
+        padding: 10px 12px;
+        font-size: 14px;
+        color: #ffffff;
+        font-family: 'Geist', sans-serif;
+        transition: border-color 0.2s;
+      }
+
+      input:focus {
+        outline: none;
+        border-color: #22c55e;
+      }
+
+      input::placeholder {
+        color: #4a4a4a;
+      }
+
+      input:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .button-group {
+        display: flex;
+        gap: 8px;
+        margin-top: 16px;
+      }
+
+      button {
+        flex: 1;
+        background-color: #22c55e;
+        border: none;
+        color: #000000;
+        padding: 10px 16px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 600;
+        font-family: 'Geist', sans-serif;
+        transition: background-color 0.2s;
+      }
+
+      button:hover:not(:disabled) {
+        background-color: #16a34a;
+      }
+
+      button.secondary {
+        background-color: #1a1a1a;
+        color: #ffffff;
+        border: 1px solid #2a2a2a;
+      }
+
+      button.secondary:hover:not(:disabled) {
+        background-color: #2a2a2a;
+      }
+
+      button:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+
+      .status {
+        margin-top: 16px;
+        padding: 12px 16px;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 500;
+      }
+
+      .status.connected {
+        background-color: #0a2f1a;
+        color: #22c55e;
+        border: 1px solid #16a34a;
+      }
+
+      .status.disconnected {
+        background-color: #2f0a0a;
+        color: #ef4444;
+        border: 1px solid #dc2626;
+      }
+
+      .status.info {
+        background-color: #0a1a2f;
+        color: #3b82f6;
+        border: 1px solid #2563eb;
+      }
+
+      .hint {
+        font-size: 12px;
+        color: #6a6a6a;
+        margin-top: 6px;
+      }
+
+      code {
+        background-color: #1a1a1a;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 12px;
+        color: #22c55e;
+      }
+
+      .hidden {
+        display: none;
+      }
+
+      .progress-container {
+        margin-top: 16px;
+      }
+
+      .progress-bar-wrapper {
+        width: 100%;
+        background-color: #1a1a1a;
+        border-radius: 4px;
+        height: 8px;
+        margin-top: 8px;
+        overflow: hidden;
+      }
+
+      .progress-bar {
+        height: 100%;
+        background-color: #22c55e;
+        width: 0%;
+        transition: width 0.3s ease;
+      }
+
+      .progress-info {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 8px;
+        font-size: 12px;
+        color: #a0a0a0;
+      }
+
       .operation-complete {
-        color: #4ade80;
+        color: #22c55e;
       }
+
       .operation-error {
-        color: #ff9999;
+        color: #ef4444;
       }
     </style>
   </head>
   <body>
     <div class="container">
+      <!-- Header -->
       <div class="header">
-        <div class="header-logo">
-          <img
-            class="header-logo-image"
-            src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADwAAAA8CAMAAAANIilAAAAABGdBTUEAALGPC/xhBQAAAAFzUkdCAK7OHOkAAAAJcEhZcwAAEJwAABCcASbNOjQAAAB1UExURUdwTP////////////////39/f////////////////////////////7+/v////////////39/f////////////////////////////////////////////////////39/fn5+ejo6P///+rq6uXl5f////Ly8gf4a04AAAAkdFJOUwAOdkZCfz04zIgbT0pkIagnm7C9b6C2LWqSxBMyB11W2Ovsy3D12ZYAAALtSURBVEjHndcJt6ogEADgXNAUcWlxSQVN3/3/P/EBAgJpWdM9p5ue78xANE2n05vIUduffgvn1oA0bX+hvRc1DYjTPHe+tiGIoqhx4zTNq/y72lMURQtmqasuPc4dAmgwfWuZrqquiw8uNnC5BRJT3YXhIZ7Xris0oLjlmOrArz7VHpOb6wpNee0ITVMHvvd25/qgvtFwla8dpxV7xnTi7dbed7iuTY16lZoV7iXQb3cqRgjVgoviKTZSUw2719pbD2OEVu5yjnqeOpZ75lMMobVzfUcwC6lrofGJpdb3jGtj6TkkNKRWtXMsU+ciNdfQUwe+zZ7/vo1CYYgv39G/kShMS6mHL+g8F96K2Uqi52E6j3DFnsc4uR/hMwugYd9bOLoeSTvPE1yx4/sLh9B9fKbziHVM3z/G+dKb5wdKdysxsNCc4+2l/yk7EnrOVhwGBt9auqJ0t9gR13C4cl77bdil88SPuK9jxrXksHjab48Mwo+4ha3aSbZJ52JpC4GFbY7OdsVst4Lls/mKZe1y6fXTonS3RFsIN7C5dAJsO+WiI21jbd8xesFEtoUdLLjH+qGNJ9WRuj3MOOQNycaV6khvsLc0MxsD2Uq7bhcHuBZh4rFdujjT1c6GkaXtszCx3sW3MRRfNjwiI7EjGjGfFjZwUgM9CuNggqRVXz+vOGDTBOCP5UnHE73ghjK1jYNlEIma9UnHBb/qdkvq1MSQjk4yCvGk4UneQylLbWAIio3I1t26q4sNTuM01tqQe9+My5pYv9wk8Ypv92w7JpXYulGoD8aJ3C/bUUp8tW5EuTa2oXI7ZGLzahZYE0l03QqZWI8Lfh1lw+zxEoNIrF8Dm/NQT8rzgz+WP/oQmL6Ud4pud/4DZzMWPKjXZfJufOyiVzzKV4/609yelDaWiZsDc6+DSwOLxNqxeD/6Ah3zf674+Kyf3xUeDi3WDFIKzCpOv/5phB4MD+cs/OWXVdych/GBf/xJd4pL9+1i/wOElMO5v/co4wAAAABJRU5ErkJggg=="
-          />
+        <div class="logo-section">
+          <svg class="logo" width="150" height="67" viewBox="0 0 150 67" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M135.607 1.13678C143.873 -0.44584 143.873 -0.446113 147.126 1.57995L148.412 2.3686C149.78 3.25587 150.885 4.03396 148.986 5.16841C147.571 5.70943 146.155 6.05062 144.676 6.35342L143.779 6.54331C142.822 6.74576 141.863 6.94463 140.904 7.14323C140.24 7.28268 139.575 7.42238 138.911 7.56227C137.605 7.83683 136.299 8.11006 134.993 8.38203C133.581 8.67625 132.171 8.9762 130.762 9.2806C125.065 10.5064 119.335 11.5362 113.597 12.5515L114.136 13.0467L114.821 13.7129L115.51 14.3664C117.21 16.884 112.717 19.9253 111.056 21.4962C110.07 22.4428 109.189 23.6971 108.317 24.7491L107.534 25.6153C105.321 28.3377 105.297 28.0426 103.649 31.1149C104.675 29.7393 105.705 28.8673 106.639 27.5928C107.826 26.1427 109.088 24.8002 110.398 23.4611C111.126 22.6697 111.852 21.8775 112.575 21.0821C113.161 20.5038 113.023 20.2423 113.566 20.1975C113.633 19.9217 113.839 19.907 113.909 19.6229C123.654 10.2057 123.654 10.2058 127.13 14.1651L127.753 14.745C129.823 16.7223 128.635 18.7966 128.225 20.6915C128.728 19.9193 129.173 19.2614 131.151 17.0848C137.67 10.5662 137.67 10.5662 141.147 13.3509C142.232 14.4789 143.636 17.6367 140.582 21.2446L140.442 21.4095C136.788 25.7255 131.261 32.4289 122.858 47.862C122.346 48.8024 121.084 48.9002 120.541 48.945C118.722 44.4792 121.856 33.9961 124.572 29.781C121.107 31.9517 118.053 36.0476 116.292 39.1014C114.188 42.9368 113.211 44.5355 110.543 41.1065C109.052 38.5007 110.575 33.9557 111.056 31.1149C108.965 33.2264 105.881 36.7433 104.217 39.2081C103.623 40.0808 103.006 40.9345 102.388 41.7901L102.384 41.7948C100.972 44.1531 100.08 46.0075 99.1578 48.3637C98.8941 49.0281 98.6297 49.6926 98.3654 50.3568L97.9623 51.3723C97.1506 53.3278 96.142 55.3792 94.1468 53.2811C91.3722 48.6065 92.218 43.5604 94.1608 38.7216C92.4534 40.0512 90.7963 41.4321 89.1488 42.835C88.4163 43.4538 87.6748 44.0575 86.9274 44.658C85.5791 45.8122 84.3993 47.0563 83.2005 48.3605L82.2081 49.3806C81.3883 50.2272 80.5871 51.0848 79.789 51.9515C76.2921 55.6935 73.2562 57.2774 71.1583 51.5374C70.9732 50.3655 71.0072 49.2764 71.0264 48.0851C71.1039 46.6769 71.1037 46.6768 70.6645 45.5729C70.3969 43.4825 70.1646 41.3918 70.4528 39.2951C70.797 38.1032 70.7968 38.1032 70.0588 38.2529L69.6053 39.382C69.1022 40.1102 68.5845 40.8284 68.0579 41.5398L67.2156 42.6832C66.7393 43.309 66.252 43.9273 65.7426 44.5266C65.1882 45.1807 64.7191 45.8442 64.252 46.5622C63.5748 47.5823 62.8717 48.5669 62.1228 49.5359C60.9551 51.0495 59.8689 52.6104 58.7999 54.1945L57.9319 55.4775C56.7709 57.3128 55.7404 59.2116 54.714 61.1245C50.8185 68.3074 50.8185 68.3073 48.4275 64.3308L47.8538 63.3886C47.606 61.4236 48.6703 59.9423 49.5631 58.2319C49.8027 57.6972 50.0381 57.1603 50.2674 56.6212C53.2363 49.8883 57.5855 43.6913 61.6646 37.5974C63.9986 34.0762 66.1554 30.4806 68.0074 26.6843L68.4134 25.9323C70.7444 21.5566 70.2388 18.7107 64.8668 18.6504C63.6509 18.73 62.4458 18.8497 61.235 18.9857C60.3482 19.072 59.4612 19.1574 58.5741 19.2416L57.2358 19.3722C55.2601 19.5524 53.2834 19.6712 51.3022 19.7712L50.2756 19.8299C47.0241 19.9891 42.1904 17.4942 42.8508 13.4733C45.0045 12.789 47.1648 12.4744 49.4091 12.2328L50.3829 12.1226C51.4481 12.0026 52.514 11.8861 53.5796 11.7695C54.3385 11.6849 55.0975 11.6 55.8564 11.5151C58.3712 11.2348 60.8867 10.9599 63.4022 10.6863L64.774 10.5371C69.3998 10.0346 74.0259 9.53553 78.6525 9.04098C80.3655 8.85783 82.0787 8.67421 83.7917 8.4905C84.6653 8.39695 85.5393 8.30376 86.4129 8.21075C92.0051 7.61499 97.5879 6.98077 103.161 6.22983L104.182 6.09344C114.695 4.68286 125.194 3.1717 135.607 1.13678ZM93.8561 21.8227C90.1471 22.1287 86.4484 25.8648 84.0066 28.3675L83.2665 29.0514C80.3023 32.1267 74.0222 42.4702 75.9822 47.0449C78.6455 45.6798 78.6458 45.6796 80.0584 43.4332L80.8505 43.095C81.4363 42.3287 82.0085 41.5519 82.5724 40.7694C83.1839 39.9999 83.7982 39.2324 84.4155 38.4675C86.347 36.0436 88.0541 33.5566 89.6469 30.8997C90.0155 30.2864 90.3901 29.6762 90.7685 29.0689C93.0381 25.6686 93.0383 25.6685 93.8561 21.8227ZM110.926 13.3178C110.867 12.6114 104.037 13.7157 101.858 14.068C101.593 14.1108 101.397 14.1424 101.29 14.1585C98.7875 14.532 96.2827 14.8819 93.7759 15.2141C93.8896 15.2325 94.0011 15.2575 94.1107 15.2888C95.4792 15.6794 96.5631 17.0636 98.2933 19.273L98.9874 20.0178C99.961 21.4817 100.026 22.8968 99.8288 24.6057C100.842 23.9911 101.318 23.4996 102.055 22.5966C103.111 21.3265 104.22 20.142 105.377 18.9619C106.203 18.0567 107.026 17.149 107.846 16.2385C108.248 15.8218 108.446 15.6167 108.658 15.4263C108.864 15.2416 109.082 15.0706 109.511 14.7342C109.93 14.4827 110.114 14.3715 110.174 14.2134C110.221 14.0882 110.19 13.9332 110.134 13.656L110.926 13.3178ZM91.6709 15.4889C88.6029 15.8835 85.5318 16.2542 82.4572 16.6111C81.6241 16.7084 80.7912 16.8076 79.9584 16.9077C78.9634 17.0262 77.9675 17.1397 76.9712 17.2473L75.6827 17.3997L74.5625 17.5239C73.0914 17.9625 74.577 19.5472 75.5229 20.5563C75.7261 20.773 75.9044 20.9635 76.0231 21.11L76.6559 22.1496C78.0829 21.7403 78.196 21.5585 78.8762 20.465L78.9351 20.3708L78.9657 20.3211C80.6198 20.1847 80.0325 22.0411 79.7353 22.9804L79.7333 22.9877L80.4341 22.5003C86.2 18.5151 89.4525 16.2669 91.6709 15.4889Z" fill="white"/>
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M21.7733 40.5362C22.4833 40.5362 23.0657 40.7133 23.5208 41.0672C23.985 41.4121 24.3263 41.8704 24.5448 42.4421C24.7723 43.0139 24.8863 43.6403 24.8863 44.321C24.8863 45.0016 24.7723 45.6278 24.5448 46.1995C24.3263 46.7713 23.985 47.2344 23.5208 47.5884C23.0657 47.9332 22.4832 48.1057 21.7733 48.1057C21.4093 48.1057 21.068 48.042 20.7494 47.915C20.4308 47.7879 20.1577 47.6108 19.9302 47.384C19.8108 47.255 19.7111 47.1136 19.6298 46.9603V49.9843H18.1827V40.6997H19.5478L19.5767 41.8067C19.7582 41.448 20.0081 41.1653 20.3262 40.9585C20.7449 40.6771 21.2272 40.5362 21.7733 40.5362ZM21.5138 41.7887C21.1316 41.7887 20.7994 41.884 20.5172 42.0745C20.2351 42.2561 20.0167 42.5376 19.8619 42.9187C19.7072 43.2999 19.6298 43.7673 19.6298 44.321C19.6298 44.8746 19.7026 45.342 19.8482 45.7232C20.003 46.1043 20.2214 46.3902 20.5035 46.5808C20.7948 46.7623 21.1315 46.8532 21.5138 46.8532C22.0963 46.8532 22.5515 46.6308 22.8792 46.1862C23.216 45.7414 23.3843 45.1196 23.3843 44.321C23.3843 43.5223 23.216 42.9005 22.8792 42.4558C22.5515 42.0111 22.0963 41.7887 21.5138 41.7887Z" fill="white"/>
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M135.013 40.8884C136.052 40.8884 136.837 41.1526 137.366 41.6805C137.904 42.1994 138.173 42.946 138.173 43.92V48.3448H136.668L136.609 47.1414C136.526 47.3296 136.414 47.5034 136.271 47.662C136.043 47.9259 135.747 48.1353 135.382 48.2901C135.018 48.4357 134.607 48.5085 134.151 48.5085C133.394 48.5085 132.783 48.3356 132.318 47.9897C131.853 47.6347 131.62 47.1431 131.62 46.515C131.62 45.8869 131.816 45.3949 132.208 45.0398C132.601 44.6848 133.198 44.4298 134.001 44.275L136.422 43.7972C136.422 43.2784 136.303 42.8916 136.066 42.6367C135.829 42.3727 135.478 42.2403 135.013 42.2403C134.593 42.2403 134.26 42.3405 134.014 42.5407C133.777 42.7319 133.613 43.0097 133.522 43.3738L131.743 43.2921C131.889 42.5183 132.245 41.9265 132.81 41.5168C133.376 41.098 134.11 40.8884 135.013 40.8884ZM134.534 45.3678C134.142 45.4498 133.859 45.5727 133.686 45.7366C133.522 45.8913 133.44 46.0959 133.44 46.3507C133.44 46.6329 133.531 46.8514 133.713 47.0062C133.905 47.1609 134.174 47.2385 134.52 47.2386C134.912 47.2385 135.25 47.161 135.533 47.0062C135.815 46.8514 136.034 46.6375 136.189 46.3644C136.344 46.0913 136.422 45.7681 136.422 45.3949V44.9852L134.534 45.3678Z" fill="white"/>
+            <path d="M140.638 48.3448H138.887V41.0524H140.638V48.3448Z" fill="white"/>
+            <path d="M14.4319 40.5362C15.0236 40.5362 15.547 40.6407 16.0021 40.8494C16.4663 41.0491 16.8393 41.3441 17.1214 41.7343C17.4127 42.1246 17.5995 42.6012 17.6814 43.1639L16.1657 43.2453C16.0929 42.7734 15.9018 42.415 15.5924 42.1699C15.2829 41.9158 14.8961 41.7887 14.4319 41.7887C13.8221 41.7887 13.3441 42.0157 12.9983 42.4695C12.6615 42.9142 12.4931 43.5314 12.4931 44.321C12.4932 45.1106 12.6615 45.7324 12.9983 46.1862C13.3441 46.6308 13.8221 46.8532 14.4319 46.8532C14.8961 46.8532 15.2829 46.7261 15.5924 46.472C15.9018 46.2088 16.0929 45.814 16.1657 45.2876L17.6814 45.3693C17.5994 45.9229 17.4127 46.4038 17.1214 46.8122C16.8393 47.2206 16.4663 47.5383 16.0021 47.7652C15.547 47.9921 15.0236 48.1057 14.4319 48.1057C13.7402 48.1057 13.1347 47.9513 12.6159 47.6428C12.0972 47.3342 11.6968 46.894 11.4147 46.3222C11.1325 45.7505 10.9912 45.0833 10.9912 44.321C10.9912 43.5586 11.1325 42.8961 11.4147 42.3334C11.6968 41.7616 12.0972 41.3214 12.6159 41.0128C13.1347 40.6952 13.7402 40.5362 14.4319 40.5362Z" fill="white"/>
+            <path d="M7.95965 40.5362C8.46937 40.5362 8.90187 40.6453 9.25685 40.8631C9.62087 41.0718 9.89404 41.3803 10.0761 41.7887C10.2672 42.1971 10.3627 42.6964 10.3627 43.2863V47.9423H8.91534V43.6402C8.91534 43.014 8.80168 42.542 8.57413 42.2243C8.34658 41.9067 8.00065 41.748 7.53648 41.748C7.23613 41.748 6.97223 41.8252 6.74469 41.9795C6.51714 42.1337 6.33959 42.3561 6.21216 42.6466C6.09386 42.9369 6.03456 43.2863 6.03455 43.6946V47.9423H4.65569V43.6946C4.65568 43.0775 4.55092 42.6011 4.3416 42.2653C4.14135 41.9204 3.79547 41.748 3.30396 41.748C2.9945 41.748 2.726 41.8252 2.49845 41.9795C2.28005 42.1337 2.10705 42.3605 1.97963 42.6599C1.85222 42.9503 1.78862 43.2953 1.78861 43.6946V47.9423H0.341215V40.6997H1.66554L1.69354 41.9294C1.76721 41.7428 1.85766 41.5732 1.96593 41.4211C2.17527 41.1398 2.43024 40.922 2.7306 40.7677C3.03095 40.6134 3.35874 40.5362 3.71371 40.5362C4.33258 40.5362 4.83769 40.7133 5.22905 41.0672C5.51529 41.3194 5.72299 41.6423 5.85345 42.0353C5.92964 41.8077 6.02653 41.6076 6.14392 41.4348C6.34414 41.1444 6.59888 40.922 6.9083 40.7677C7.21776 40.6134 7.56828 40.5362 7.95965 40.5362Z" fill="white"/>
+            <path d="M140.679 40.0829H138.859V38.5259H140.679V40.0829Z" fill="white"/>
+          </svg>
         </div>
-        <div class="header-text">
-          <h1>Tom Talk to Figma MCP Plugin</h1>
-          <p>Connect Figma to the Tom Talk to Figma MCP server</p>
+        <div class="info-section">
+          <div class="project-name">Tom to Figma</div>
+          <a class="project-link" onclick="window.open('https://github.com/grab/tom-talk-to-figma-mcp', '_blank')">Github</a>
         </div>
       </div>
 
-      <div class="tabs">
-        <div id="tab-connection" class="tab active">Connection</div>
-        <div id="tab-about" class="tab">About</div>
+      <!-- How to Use -->
+      <div class="section how-to-use">
+        <h2>How to Use</h2>
+        <ol>
+          <li>Start the Tom to Figma MCP server</li>
+          <li>Connect to the relay using WebSocket URL (wss://)</li>
+          <li>Interact with Figma through Tom to Figma MCP</li>
+        </ol>
       </div>
 
-      <div id="content-connection" class="tab-content active">
-        <div class="section">
+      <!-- Connection -->
+      <div class="section connection-section">
+        <h2>Connection</h2>
+
+        <div class="input-group">
           <label for="socket-url">WebSocket Server URL</label>
-          <div style="display: flex; gap: 8px">
-            <input
-              type="text"
-              id="socket-url"
-              placeholder="wss://relay-production-bcbf.up.railway.app"
-              value=""
-              inputmode="url"
-            />
-            <button id="btn-connect" class="primary">Connect</button>
+          <input
+            type="text"
+            id="socket-url"
+            placeholder="wss://relay-production-bcbf.up.railway.app"
+            value=""
+            inputmode="url"
+          />
+          <div class="hint">
+            Use secure <code>wss://</code> URLs for hosted deployments
           </div>
-          <p style="margin-top: 8px; font-size: 12px; color: #9ca3af;">
-            Use secure <code>wss://</code> URLs for hosted deployments. You can override
-            this value for local testing.
-          </p>
+        </div>
+
+        <div class="input-group">
+          <label for="auth-token">Auth Token (optional)</label>
+          <input
+            type="password"
+            id="auth-token"
+            placeholder="Enter authentication token"
+            value=""
+          />
+          <div class="hint">
+            Leave empty if authentication is not required
+          </div>
+        </div>
+
+        <div class="button-group">
+          <button id="btn-connect" class="primary">Connect</button>
+          <button id="btn-disconnect" class="secondary" disabled>Disconnect</button>
         </div>
 
         <div id="connection-status" class="status disconnected">
-          Not connected to Tom Talk to Figma MCP server
+          Not connected to Tom to Figma MCP server
         </div>
 
-        <div class="section">
-          <button id="btn-disconnect" class="secondary" disabled>
-            Disconnect
-          </button>
-        </div>
-        
-        <!-- Add Progress Bar Section -->
-        <div id="progress-container" class="section hidden">
-          <h2>Operation Progress</h2>
-          <div id="progress-message">No operation in progress</div>
-          <div style="width: 100%; background-color: #444; border-radius: 4px; margin-top: 8px;">
-            <div id="progress-bar" style="width: 0%; height: 8px; background-color: #18a0fb; border-radius: 4px; transition: width 0.3s;"></div>
+        <!-- Progress Bar -->
+        <div id="progress-container" class="progress-container hidden">
+          <div id="progress-message">Operation in progress</div>
+          <div class="progress-bar-wrapper">
+            <div id="progress-bar" class="progress-bar"></div>
           </div>
-          <div style="display: flex; justify-content: space-between; margin-top: 4px; font-size: 12px;">
+          <div class="progress-info">
             <div id="progress-status">Not started</div>
             <div id="progress-percentage">0%</div>
           </div>
-        </div>
-      </div>
-
-      <div id="content-about" class="tab-content">
-        <div class="section">
-          <h2>About Tom Talk to Figma MCP Plugin</h2>
-          <p>
-            This plugin allows the Tom Talk to Figma MCP server to communicate with Figma, enabling
-            AI-assisted design operations.
-            <a
-              class="link"
-              onclick="window.open(`https://github.com/grab/tom-talk-to-figma-mcp`, '_blank')"
-              >Github</a
-            >
-          </p>
-          <p>Version: 1.0.0</p>
-
-          <h2>How to Use</h2>
-          <ol>
-            <li>Make sure the Tom Talk to Figma MCP server is running</li>
-            <li>Connect to the relay using your socket URL (ws:// or wss://)</li>
-            <li>Once connected, you can interact with Figma through Tom Talk to Figma MCP</li>
-          </ol>
         </div>
       </div>
     </div>
@@ -265,37 +351,33 @@
         connected: false,
         socket: null,
         serverUrl: DEFAULT_SOCKET_URL,
+        authToken: "",
         pendingRequests: new Map(),
         channel: null,
       };
 
       // UI Elements
       const socketInput = document.getElementById("socket-url");
+      const authTokenInput = document.getElementById("auth-token");
       const connectButton = document.getElementById("btn-connect");
       const disconnectButton = document.getElementById("btn-disconnect");
       const connectionStatus = document.getElementById("connection-status");
-
-      if (socketInput) {
-        socketInput.value = state.serverUrl;
-      }
-
-      // Tabs
-      const tabs = document.querySelectorAll(".tab");
-      const tabContents = document.querySelectorAll(".tab-content");
-
-      // Add UI elements for progress tracking
       const progressContainer = document.getElementById("progress-container");
       const progressBar = document.getElementById("progress-bar");
       const progressMessage = document.getElementById("progress-message");
       const progressStatus = document.getElementById("progress-status");
       const progressPercentage = document.getElementById("progress-percentage");
 
+      if (socketInput) {
+        socketInput.value = state.serverUrl;
+      }
+
       // Initialize UI
       function updateConnectionStatus(isConnected, message) {
         state.connected = isConnected;
         const defaultMessage = isConnected
-          ? `Connected to Tom Talk to Figma MCP server at ${state.serverUrl}`
-          : "Not connected to Tom Talk to Figma MCP server";
+          ? `Connected to Tom to Figma MCP server at ${state.serverUrl}`
+          : "Not connected to Tom to Figma MCP server";
         connectionStatus.innerHTML = message || defaultMessage;
         connectionStatus.className = `status ${
           isConnected ? "connected" : "disconnected"
@@ -305,6 +387,9 @@
         disconnectButton.disabled = !isConnected;
         if (socketInput) {
           socketInput.disabled = isConnected;
+        }
+        if (authTokenInput) {
+          authTokenInput.disabled = isConnected;
         }
       }
 
@@ -351,18 +436,29 @@
 
           const normalizedUrl = normalizeSocketUrl(socketUrl || state.serverUrl);
           state.serverUrl = normalizedUrl;
+          state.authToken = authTokenInput ? authTokenInput.value.trim() : "";
 
           parent.postMessage(
             {
               pluginMessage: {
                 type: "update-settings",
                 socketUrl: state.serverUrl,
+                authToken: state.authToken,
               },
             },
             "*"
           );
 
-          state.socket = new WebSocket(normalizedUrl);
+          // Create WebSocket URL with auth token if provided
+          let wsUrl = normalizedUrl;
+          if (state.authToken) {
+            // Add token as query parameter since browser WebSocket doesn't support custom headers
+            const urlObj = new URL(normalizedUrl);
+            urlObj.searchParams.set('token', state.authToken);
+            wsUrl = urlObj.toString();
+          }
+
+          state.socket = new WebSocket(wsUrl);
 
           state.socket.onopen = () => {
             // Generate random channel name
@@ -370,7 +466,7 @@
             console.log("Joining channel:", channelName);
             state.channel = channelName;
 
-            // Join the channel using the same format as App.tsx
+            // Join the channel
             state.socket.send(
               JSON.stringify({
                 type: "join",
@@ -399,7 +495,7 @@
                     {
                       pluginMessage: {
                         type: "notify",
-                        message: `Connected to Tom Talk to Figma MCP server at ${state.serverUrl} in channel: ${channelName}`,
+                        message: `Connected to Tom to Figma MCP server at ${state.serverUrl} in channel: ${channelName}`,
                       },
                     },
                     "*"
@@ -491,40 +587,6 @@
         }
       }
 
-      // Send a command to the WebSocket server
-      async function sendCommand(command, params) {
-        return new Promise((resolve, reject) => {
-          if (!state.connected || !state.socket) {
-            reject(new Error("Not connected to server"));
-            return;
-          }
-
-          const id = generateId();
-          state.pendingRequests.set(id, { resolve, reject });
-
-          state.socket.send(
-            JSON.stringify({
-              id,
-              type: "message",
-              channel: state.channel,
-              message: {
-                id,
-                command,
-                params,
-              },
-            })
-          );
-
-          // Set timeout to reject the promise after 30 seconds
-          setTimeout(() => {
-            if (state.pendingRequests.has(id)) {
-              state.pendingRequests.delete(id);
-              reject(new Error("Request timed out"));
-            }
-          }, 30000);
-        });
-      }
-
       // Send success response back to WebSocket
       function sendSuccessResponse(id, result) {
         if (!state.connected || !state.socket) {
@@ -573,7 +635,7 @@
         );
       }
 
-      // Add this function after the generateId() function
+      // Generate channel name
       function generateChannelName() {
         const characters = "abcdefghijklmnopqrstuvwxyz0123456789";
         let result = "";
@@ -585,52 +647,16 @@
         return result;
       }
 
-      // Tab switching
-      tabs.forEach((tab) => {
-        tab.addEventListener("click", () => {
-          tabs.forEach((t) => t.classList.remove("active"));
-          tabContents.forEach((c) => c.classList.remove("active"));
-
-          tab.classList.add("active");
-          const contentId = "content-" + tab.id.split("-")[1];
-          document.getElementById(contentId).classList.add("active");
-        });
-      });
-
-      // Connect to server
-      connectButton.addEventListener("click", () => {
-        const rawValue = socketInput ? socketInput.value : state.serverUrl;
-        const normalizedUrl = normalizeSocketUrl(rawValue);
-        if (socketInput) {
-          socketInput.value = normalizedUrl;
-        }
-
-        updateConnectionStatus(false, "Connecting...");
-        connectionStatus.className = "status info";
-        connectToServer(normalizedUrl);
-      });
-
-      // Disconnect from server
-      disconnectButton.addEventListener("click", () => {
-        updateConnectionStatus(false, "Disconnecting...");
-        connectionStatus.className = "status info";
-        disconnectFromServer();
-      });
-
       // Function to update progress UI
       function updateProgressUI(progressData) {
-        // Show progress container if hidden
         progressContainer.classList.remove("hidden");
-        
-        // Update progress bar
+
         const progress = progressData.progress || 0;
         progressBar.style.width = `${progress}%`;
         progressPercentage.textContent = `${progress}%`;
-        
-        // Update message
+
         progressMessage.textContent = progressData.message || "Operation in progress";
-        
-        // Update status text based on operation state
+
         if (progressData.status === 'started') {
           progressStatus.textContent = "Started";
           progressStatus.className = "";
@@ -640,8 +666,7 @@
         } else if (progressData.status === 'completed') {
           progressStatus.textContent = "Completed";
           progressStatus.className = "operation-complete";
-          
-          // Hide progress container after 5 seconds
+
           setTimeout(() => {
             progressContainer.classList.add("hidden");
           }, 5000);
@@ -657,9 +682,9 @@
           console.error("Cannot send progress update: socket not connected");
           return;
         }
-        
+
         console.log("Sending progress update to server:", progressData);
-        
+
         state.socket.send(
           JSON.stringify({
             id: progressData.commandId,
@@ -673,16 +698,26 @@
           })
         );
       }
-      
-      // Reset progress UI
-      function resetProgressUI() {
-        progressContainer.classList.add("hidden");
-        progressBar.style.width = "0%";
-        progressMessage.textContent = "No operation in progress";
-        progressStatus.textContent = "Not started";
-        progressStatus.className = "";
-        progressPercentage.textContent = "0%";
-      }
+
+      // Connect button
+      connectButton.addEventListener("click", () => {
+        const rawValue = socketInput ? socketInput.value : state.serverUrl;
+        const normalizedUrl = normalizeSocketUrl(rawValue);
+        if (socketInput) {
+          socketInput.value = normalizedUrl;
+        }
+
+        updateConnectionStatus(false, "Connecting...");
+        connectionStatus.className = "status info";
+        connectToServer(normalizedUrl);
+      });
+
+      // Disconnect button
+      disconnectButton.addEventListener("click", () => {
+        updateConnectionStatus(false, "Disconnecting...");
+        connectionStatus.className = "status info";
+        disconnectFromServer();
+      });
 
       // Listen for messages from the plugin code
       window.onmessage = (event) => {
@@ -701,8 +736,14 @@
             } else {
               state.serverUrl = DEFAULT_SOCKET_URL;
             }
+            if (message.settings && message.settings.authToken) {
+              state.authToken = message.settings.authToken;
+            }
             if (socketInput) {
               socketInput.value = state.serverUrl;
+            }
+            if (authTokenInput && state.authToken) {
+              authTokenInput.value = state.authToken;
             }
             break;
           case "auto-connect":
@@ -712,17 +753,13 @@
             disconnectButton.click();
             break;
           case "command-result":
-            // Forward the result from plugin code back to WebSocket
             sendSuccessResponse(message.id, message.result);
             break;
           case "command-error":
-            // Forward the error from plugin code back to WebSocket
             sendErrorResponse(message.id, message.error);
             break;
           case "command_progress":
-            // Update UI with progress information
             updateProgressUI(message);
-            // Forward progress update to server
             sendProgressUpdateToServer(message);
             break;
         }

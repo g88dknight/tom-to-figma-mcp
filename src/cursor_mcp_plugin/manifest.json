@@ -1,5 +1,5 @@
 {
-  "name": "Tom Talk to Figma MCP Plugin",
+  "name": "Tom to Figma",
   "id": "tom-talk-to-figma-mcp-plugin",
   "api": "1.0.0",
   "main": "code.js",

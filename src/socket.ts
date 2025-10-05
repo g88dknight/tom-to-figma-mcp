@@ -115,18 +115,33 @@ function isAuthorized(req: Request): boolean {
     return true;
   }
 
+  // Check Authorization header
   const authHeader = req.headers.get("authorization") ?? "";
-  if (!authHeader) {
-    return false;
+  if (authHeader) {
+    if (authHeader === expectedAuthHeader) {
+      return true;
+    }
+
+    // Accept raw token without Bearer prefix as a convenience
+    const rawToken = expectedAuthHeader.replace(/^Bearer\s+/i, "");
+    if (authHeader === rawToken || authHeader === `Bearer ${rawToken}`) {
+      return true;
+    }
   }
 
-  if (authHeader === expectedAuthHeader) {
-    return true;
+  // Check URL query parameter (for browser WebSocket which doesn't support custom headers)
+  try {
+    const url = new URL(req.url);
+    const tokenParam = url.searchParams.get("token") ?? url.searchParams.get("auth");
+    if (tokenParam) {
+      const rawToken = expectedAuthHeader.replace(/^Bearer\s+/i, "");
+      return tokenParam === rawToken;
+    }
+  } catch (err) {
+    // Invalid URL, continue to return false
   }
 
-  // Accept raw token without Bearer prefix as a convenience
-  const rawToken = expectedAuthHeader.replace(/^Bearer\s+/i, "");
-  return authHeader === rawToken || authHeader === `Bearer ${rawToken}`;
+  return false;
 }
 
 // Store clients by channel
