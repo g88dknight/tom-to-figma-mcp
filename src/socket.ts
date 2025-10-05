@@ -42,7 +42,7 @@ function parseAllowedOrigins(raw?: string): string[] {
 }
 
 const port = parseNumber(
-  getFlagValue("port") ?? process.env.FIGMA_SOCKET_PORT ?? process.env.PORT,
+  getFlagValue("port") ?? process.env.PORT ?? process.env.FIGMA_SOCKET_PORT,
   3055
 );
 
