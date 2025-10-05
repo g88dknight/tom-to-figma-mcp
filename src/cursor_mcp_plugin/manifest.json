@@ -16,12 +16,7 @@
       "https://mcp-server-production-4ddc.up.railway.app",
       "wss://mcp-server-production-4ddc.up.railway.app"
     ],
-    "devAllowedDomains": [
-      "https://localhost:3055",
-      "wss://localhost:3055",
-      "https://127.0.0.1:3055",
-      "wss://127.0.0.1:3055"
-    ]
+    "devAllowedDomains": []
   },
   "documentAccess": "dynamic-page",
   "enableProposedApi": true,
