@@ -319,6 +319,25 @@
           </div>
         </div>
 
+        <div class="input-group">
+          <label for="channel-name">Channel Name</label>
+          <div style="display: flex; gap: 8px;">
+            <input
+              type="text"
+              id="channel-name"
+              placeholder="default"
+              value=""
+              style="flex: 1;"
+            />
+            <button id="btn-generate-channel" class="secondary" style="flex: 0 0 auto; padding: 10px 12px;">
+              🔄
+            </button>
+          </div>
+          <div class="hint">
+            Must match the channel name in your MCP server configuration
+          </div>
+        </div>
+
         <div class="button-group">
           <button id="btn-connect" class="primary">Connect</button>
           <button id="btn-disconnect" class="secondary" disabled>Disconnect</button>
@@ -345,6 +364,7 @@
     <script>
       const DEFAULT_SOCKET_URL =
         window.DEFAULT_SOCKET_URL || "wss://relay-production-bcbf.up.railway.app";
+      const DEFAULT_CHANNEL = "default";
 
       // WebSocket connection state
       const state = {
@@ -352,6 +372,7 @@
         socket: null,
         serverUrl: DEFAULT_SOCKET_URL,
         authToken: "",
+        channelName: DEFAULT_CHANNEL,
         pendingRequests: new Map(),
         channel: null,
       };
@@ -359,6 +380,8 @@
       // UI Elements
       const socketInput = document.getElementById("socket-url");
       const authTokenInput = document.getElementById("auth-token");
+      const channelNameInput = document.getElementById("channel-name");
+      const generateChannelButton = document.getElementById("btn-generate-channel");
       const connectButton = document.getElementById("btn-connect");
       const disconnectButton = document.getElementById("btn-disconnect");
       const connectionStatus = document.getElementById("connection-status");
@@ -370,6 +393,9 @@
 
       if (socketInput) {
         socketInput.value = state.serverUrl;
+      }
+      if (channelNameInput) {
+        channelNameInput.value = state.channelName;
       }
 
       // Initialize UI
@@ -390,6 +416,12 @@
         }
         if (authTokenInput) {
           authTokenInput.disabled = isConnected;
+        }
+        if (channelNameInput) {
+          channelNameInput.disabled = isConnected;
+        }
+        if (generateChannelButton) {
+          generateChannelButton.disabled = isConnected;
         }
       }
 
@@ -437,6 +469,15 @@
           const normalizedUrl = normalizeSocketUrl(socketUrl || state.serverUrl);
           state.serverUrl = normalizedUrl;
           state.authToken = authTokenInput ? authTokenInput.value.trim() : "";
+          state.channelName = channelNameInput ? channelNameInput.value.trim() : DEFAULT_CHANNEL;
+
+          // Use default channel if empty
+          if (!state.channelName) {
+            state.channelName = DEFAULT_CHANNEL;
+            if (channelNameInput) {
+              channelNameInput.value = DEFAULT_CHANNEL;
+            }
+          }
 
           parent.postMessage(
             {
@@ -444,6 +485,7 @@
                 type: "update-settings",
                 socketUrl: state.serverUrl,
                 authToken: state.authToken,
+                channelName: state.channelName,
               },
             },
             "*"
@@ -461,8 +503,8 @@
           state.socket = new WebSocket(wsUrl);
 
           state.socket.onopen = () => {
-            // Generate random channel name
-            const channelName = generateChannelName();
+            // Use configured channel name instead of generating random
+            const channelName = state.channelName;
             console.log("Joining channel:", channelName);
             state.channel = channelName;
 
@@ -719,6 +761,17 @@
         disconnectFromServer();
       });
 
+      // Generate channel button
+      if (generateChannelButton) {
+        generateChannelButton.addEventListener("click", () => {
+          const newChannel = generateChannelName();
+          if (channelNameInput) {
+            channelNameInput.value = newChannel;
+          }
+          state.channelName = newChannel;
+        });
+      }
+
       // Listen for messages from the plugin code
       window.onmessage = (event) => {
         const message = event.data.pluginMessage;
@@ -739,11 +792,19 @@
             if (message.settings && message.settings.authToken) {
               state.authToken = message.settings.authToken;
             }
+            if (message.settings && message.settings.channelName) {
+              state.channelName = message.settings.channelName;
+            } else {
+              state.channelName = DEFAULT_CHANNEL;
+            }
             if (socketInput) {
               socketInput.value = state.serverUrl;
             }
             if (authTokenInput && state.authToken) {
               authTokenInput.value = state.authToken;
+            }
+            if (channelNameInput) {
+              channelNameInput.value = state.channelName;
             }
             break;
           case "auto-connect":

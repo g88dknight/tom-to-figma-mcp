@@ -2,10 +2,13 @@
 // It handles Figma API commands
 
 const DEFAULT_SOCKET_URL = "wss://tom-talk-to-figma-mcp.up.railway.app";
+const DEFAULT_CHANNEL = "default";
 
 // Plugin state
 const state = {
   socketUrl: DEFAULT_SOCKET_URL,
+  authToken: "",
+  channelName: DEFAULT_CHANNEL,
 };
 
 
@@ -98,9 +101,17 @@ function updateSettings(settings) {
   if (settings.socketUrl) {
     state.socketUrl = settings.socketUrl;
   }
+  if (settings.authToken !== undefined) {
+    state.authToken = settings.authToken;
+  }
+  if (settings.channelName) {
+    state.channelName = settings.channelName;
+  }
 
   figma.clientStorage.setAsync("settings", {
     socketUrl: state.socketUrl,
+    authToken: state.authToken,
+    channelName: state.channelName,
   });
 }
 
@@ -1401,6 +1412,12 @@ async function setTextContent(params) {
       if (savedSettings.socketUrl) {
         state.socketUrl = savedSettings.socketUrl;
       }
+      if (savedSettings.authToken !== undefined) {
+        state.authToken = savedSettings.authToken;
+      }
+      if (savedSettings.channelName) {
+        state.channelName = savedSettings.channelName;
+      }
     }
 
     // Send initial settings to UI
@@ -1408,6 +1425,8 @@ async function setTextContent(params) {
       type: "init-settings",
       settings: {
         socketUrl: state.socketUrl,
+        authToken: state.authToken,
+        channelName: state.channelName,
       },
     });
   } catch (error) {
