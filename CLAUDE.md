@@ -69,14 +69,23 @@ No automated test suite. Manual testing via MCP client (IDE) by invoking tools a
 
 All configuration uses environment variables with CLI flag overrides:
 
+### MCP Server Environment Variables
 - `FIGMA_SOCKET_URL` (default: `ws://127.0.0.1:3055`) - Relay WebSocket endpoint
-- `FIGMA_SOCKET_CHANNEL` - Auto-join channel after relay connection
-- `FIGMA_SOCKET_AUTH_TOKEN` - Optional Authorization header for relay
+- `FIGMA_SOCKET_CHANNEL` (default: `default`) - **REQUIRED**: Channel name for relay communication. Must match Figma plugin channel
+- `FIGMA_SOCKET_AUTH_TOKEN` - **REQUIRED for production**: Auth token sent via URL query parameter (`?token=...`)
 - `PORT` (default: `3000`) - HTTP server port
 - `HTTP_HOST` / `HOST` (default: `0.0.0.0`) - HTTP bind address
+
+### WebSocket Relay Environment Variables
 - `FIGMA_SOCKET_PORT` (default: `3055`) - Relay port
-- `ALLOWED_ORIGINS` - Comma-delimited CORS allowlist
+- `FIGMA_SOCKET_AUTH_TOKEN` - Auth token for validating connections (supports both header and URL query param)
+- `ALLOWED_ORIGINS` - Comma-delimited CORS allowlist (default: `*`)
 - `ALLOWED_HOSTS` - Hostname allowlist for HTTP deployments
+
+### Figma Plugin Settings (saved in plugin UI)
+- **WebSocket Server URL**: `wss://relay-production-bcbf.up.railway.app`
+- **Auth Token**: Same as `FIGMA_SOCKET_AUTH_TOKEN` (sent as `?token=...` in WebSocket URL)
+- **Channel Name**: Must match `FIGMA_SOCKET_CHANNEL` in MCP server config (default: `default`)
 
 CLI flags take precedence: `--mode=http`, `--figma-socket-url=wss://...`, `--port=3000`, etc.
 
@@ -186,15 +195,119 @@ Binary entry point: `dist/server.js` (see [package.json:8](package.json))
 
 ## Deployment Notes
 
-- Docker: Use `bun start` (respects `PORT` env var)
-- Railway/Fly: Deploy MCP server (`bun start`) + relay (`./scripts/socket-hosted.sh`) separately
+### Railway Deployment (Recommended)
+
+Deploy **two separate services** in the same Railway project:
+
+#### 1. WebSocket Relay Service
+```bash
+# Start command
+bun socket
+
+# Environment variables
+FIGMA_SOCKET_PORT=8080
+FIGMA_SOCKET_AUTH_TOKEN=your-secret-token-here
+ALLOWED_ORIGINS=*
+```
+
+#### 2. MCP Server Service (HTTP mode)
+```bash
+# Start command
+bun start
+
+# Environment variables
+FIGMA_SOCKET_URL=wss://relay-production-bcbf.up.railway.app
+FIGMA_SOCKET_CHANNEL=default
+FIGMA_SOCKET_AUTH_TOKEN=your-secret-token-here
+PORT=3000
+HTTP_HOST=0.0.0.0
+ALLOWED_ORIGINS=*
+```
+
+### Local Development
+```bash
+# Terminal 1: Start relay
+bun socket
+
+# Terminal 2: Start MCP server (stdio mode for local IDE)
+bunx tom-talk-to-figma-mcp
+```
+
+### Docker Deployment
+- Use `bun start` (respects `PORT` env var)
+- Ensure `HTTP_HOST=0.0.0.0` for container networking
 - Relay must be publicly accessible (WSS) for hosted plugin
-- Set `FIGMA_SOCKET_URL` to public relay endpoint on MCP server
-- Default hosted relay: `wss://tom-talk-to-figma-mcp.up.railway.app`
+
+## Connecting External AI Agents
+
+### For OpenAI, Claude API, or other HTTP-based agents:
+
+**MCP Server URL:**
+```
+https://mcp-server-production-4ddc.up.railway.app
+```
+
+**Authentication:**
+- Type: `Access token / API key`
+- Token: Same value as `FIGMA_SOCKET_AUTH_TOKEN`
+
+**Example Configuration:**
+```json
+{
+  "url": "https://mcp-server-production-4ddc.up.railway.app",
+  "auth": {
+    "type": "bearer",
+    "token": "your-secret-token-here"
+  }
+}
+```
+
+### For Local IDE (Cursor, VSCode):
+
+**`.cursor/mcp.json` or `cline_mcp_settings.json`:**
+```json
+{
+  "mcpServers": {
+    "tom-to-figma": {
+      "command": "bunx",
+      "args": ["tom-talk-to-figma-mcp"],
+      "env": {
+        "FIGMA_SOCKET_URL": "wss://relay-production-bcbf.up.railway.app",
+        "FIGMA_SOCKET_CHANNEL": "default",
+        "FIGMA_SOCKET_AUTH_TOKEN": "your-secret-token-here"
+      }
+    }
+  }
+}
+```
+
+## Setup Instructions
+
+### 1. Install Figma Plugin
+1. Open Figma Desktop app
+2. Go to Plugins → Development → Import plugin from manifest
+3. Select `src/cursor_mcp_plugin/manifest.json`
+
+### 2. Configure Figma Plugin
+1. Run the "Tom to Figma" plugin in Figma
+2. Enter settings:
+   - **WebSocket Server URL**: `wss://relay-production-bcbf.up.railway.app`
+   - **Auth Token**: Your secret token
+   - **Channel Name**: `default` (must match MCP server config)
+3. Click **Connect**
+4. Verify green status: "Connected to server at wss://... in channel: default"
+
+### 3. Test Connection
+Ask your AI agent:
+```
+"Create a red rectangle 200x100 in Figma"
+```
 
 ## Common Issues
 
-- **403 Forbidden**: Add origin to `ALLOWED_ORIGINS`
+- **403 Forbidden**: Add origin to `ALLOWED_ORIGINS` in relay config
+- **401 Unauthorized**: Check that `FIGMA_SOCKET_AUTH_TOKEN` matches in all three places (relay, MCP server, Figma plugin)
 - **Connection refused**: Relay defaults to `127.0.0.1`; use `--host 0.0.0.0` for containers
 - **Plugin stuck connecting**: Ensure `wss://` (not `ws://`) for hosted environments
-- **No channel joined**: Set `FIGMA_SOCKET_CHANNEL` or call `join_channel` tool
+- **Channel mismatch**: Verify `FIGMA_SOCKET_CHANNEL` in MCP server matches "Channel Name" in Figma plugin
+- **"Please join a channel"**: Set `FIGMA_SOCKET_CHANNEL` environment variable or configure in plugin UI
