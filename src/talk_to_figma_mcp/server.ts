@@ -8,6 +8,8 @@ import WebSocket from "ws";
 import { v4 as uuidv4 } from "uuid";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
+import { createRestRouter } from "./rest-router.js";
+import { initializeRelayClient } from "./relay-client.js";
 
 // Define TypeScript interfaces for Figma responses
 interface FigmaResponse {
@@ -200,6 +202,9 @@ const httpHost =
   "0.0.0.0";
 const httpPath = getFlagValue("http-path") ?? process.env.MCP_HTTP_PATH ?? "/mcp";
 const healthPath = getFlagValue("health-path") ?? process.env.MCP_HEALTH_PATH ?? "/healthz";
+
+// REST API auth token (separate from WebSocket auth)
+const mcpAuthToken = getFlagValue("mcp-auth-token") ?? process.env.MCP_AUTH_TOKEN ?? undefined;
 
 logger.info(`Using Figma socket URL: ${figmaSocketUrl}`);
 if (defaultChannel) {
@@ -3249,6 +3254,23 @@ server.tool(
 );
 
 async function startHttpTransport(): Promise<void> {
+  // Initialize relay client for REST API
+  if (defaultChannel) {
+    const authToken = figmaSocketAuthTokenHeader?.replace("Bearer ", "");
+    initializeRelayClient({
+      socketUrl: figmaSocketUrl,
+      authToken,
+      channel: defaultChannel,
+    });
+    logger.info("[REST API] Relay client initialized");
+  }
+
+  // Create REST router
+  const restApp = createRestRouter({
+    authToken: mcpAuthToken,
+    allowedOrigins: allowedOrigins,
+  });
+
   const transport = new StreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
   });
@@ -3266,6 +3288,13 @@ async function startHttpTransport(): Promise<void> {
 
       const originHost = req.headers.host ?? `${httpHost}:${httpPort}`;
       const requestUrl = new URL(req.url, `http://${originHost}`);
+
+      // Handle REST API routes (health, /figma/*)
+      if (requestUrl.pathname === "/health" || requestUrl.pathname.startsWith("/figma/")) {
+        // Use express app to handle REST API routes
+        restApp(req, res);
+        return;
+      }
 
       if (requestUrl.pathname === healthPath) {
         if (req.method === "GET" || req.method === "HEAD") {
@@ -3328,6 +3357,8 @@ async function startHttpTransport(): Promise<void> {
       const port = typeof address === "object" && address ? address.port : httpPort;
       logger.info(`Tom Talk to Figma MCP HTTP server listening on http://${httpHost}:${port}${httpPath}`);
       logger.info(`Health endpoint available at http://${httpHost}:${port}${healthPath}`);
+      logger.info(`REST API endpoints available at http://${httpHost}:${port}/figma/*`);
+      logger.info(`REST health check at http://${httpHost}:${port}/health`);
       resolve();
     });
   });

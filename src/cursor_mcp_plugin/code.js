@@ -1,7 +1,7 @@
 // This is the main code file for the Tom Talk to Figma MCP plugin
 // It handles Figma API commands
 
-const DEFAULT_SOCKET_URL = "wss://tom-talk-to-figma-mcp.up.railway.app";
+const DEFAULT_SOCKET_URL = "wss://relay-production-bcbf.up.railway.app";
 const DEFAULT_CHANNEL = "default";
 
 // Plugin state
@@ -246,6 +246,9 @@ async function handleCommand(command, params) {
       return await setFocus(params);
     case "set_selections":
       return await setSelections(params);
+    case "ping":
+      // Heartbeat check for REST API
+      return { success: true, message: "pong", timestamp: Date.now() };
     default:
       throw new Error(`Unknown command: ${command}`);
   }
