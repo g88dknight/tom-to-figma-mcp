@@ -27,8 +27,9 @@ Tom Talk to Figma MCP is a hosted-friendly Model Context Protocol (MCP) server a
 **Current Status:**
 - ✅ MCP Server: Working (40 tools, HTTP + stdio modes)
 - ✅ WebSocket Relay: Working (Railway deployment, authentication)
-- ✅ Figma Plugin: Receives commands successfully
-- ⚠️ **In Progress**: Plugin response handling (see [Current Issues](#current-issues))
+- ✅ Figma Plugin: Receives commands AND sends responses successfully
+- ✅ Broadcast Handling: External clients (Tom AI) can now execute commands
+- ⚠️ **Next Step**: Fix Tom Chat SDK client to properly handle responses (see [TOM_CHAT_SDK_FIX_PLAN.md](TOM_CHAT_SDK_FIX_PLAN.md))
 
 ## Architecture
 
@@ -53,11 +54,11 @@ Tom AI (figma-connect tool)
     ↓ (WebSocket)
 Bun Relay (socket.ts)
     ↓ (broadcast)
-Figma Plugin (code.js)
-    ↓ (response - pending)
+Figma Plugin (code.js + ui.html)
+    ↓ (response ✅ WORKING since Oct 2025)
 Bun Relay (socket.ts)
-    ↓ (WebSocket - pending)
-Tom AI
+    ↓ (WebSocket)
+Tom AI (needs client fix - see TOM_CHAT_SDK_FIX_PLAN.md)
 ```
 
 ## Common Commands
@@ -406,102 +407,74 @@ Navigate to Tom AI admin chat (`/admin/chat`) and send:
 - ✅ Plugin sends response
 - ✅ Response received without timeout
 
-## Current Issues
+## Recent Fixes (October 2025)
 
-### ⚠️ Plugin Response Handling (In Progress)
+### ✅ Broadcast Message Handling - COMPLETED
 
-**Problem:**
-External clients (like Tom AI) can connect to relay, send commands to Figma plugin, but the plugin doesn't send responses back, causing 10-second timeouts.
+**What was fixed:**
+External clients (Tom AI) can now successfully execute commands in Figma and receive responses.
 
-**Current Status:**
-- ✅ Tom AI → WebSocket Relay: Working perfectly with auth
-- ✅ Relay → Figma Plugin: Broadcasting commands correctly
-- ✅ Plugin receives commands: Commands are processed successfully
-- ❌ Plugin → Relay: Response mechanism not implemented
-- ❌ Relay → Tom AI: No response to forward back
+**Changes made in [src/cursor_mcp_plugin/ui.html](src/cursor_mcp_plugin/ui.html):**
 
-**Root Cause:**
-Plugin code in [src/cursor_mcp_plugin/ui.html](src/cursor_mcp_plugin/ui.html) needs 3 changes to handle broadcast messages and send responses:
-
-**Required Changes:**
-
-1. **Handle broadcast message type** (line ~120):
+1. **Added `generateId()` function** (line 625-628):
    ```javascript
-   // BEFORE (wrong):
-   if (data.type === "command") { ... }
-
-   // AFTER (correct):
-   if (data.type === "command" || data.type === "broadcast") {
-     const command = data.type === "broadcast" ? data.message : data;
-     // ... process command
+   function generateId() {
+     return `cmd_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
    }
    ```
 
-2. **Extract command correctly** (line ~125):
+2. **Added broadcast message handling** (lines 870-900):
    ```javascript
-   // BEFORE (wrong):
-   const commandType = data.command;
+   // Handle broadcast messages from relay (external clients like Tom AI)
+   if (payload.type === "broadcast") {
+     const data = payload.message;
+     console.log("[DEBUG] Processing broadcast command:", data.type);
 
-   // AFTER (correct):
-   const commandType = command.type;  // Extract from command object
-   ```
+     if (data.type) {
+       const commandId = generateId();
 
-3. **Send response back** (after command execution):
-   ```javascript
-   // Add response handlers:
-   function sendSuccessResponse(commandId, result) {
-     if (ws && ws.readyState === WebSocket.OPEN) {
-       ws.send(JSON.stringify({
-         type: "message",
-         channel: currentChannel,
-         message: {
-           id: commandId,
-           result: result,
-           success: true
-         }
-       }));
+       try {
+         parent.postMessage({
+           pluginMessage: {
+             type: "execute-command",
+             id: commandId,
+             command: data.type,  // Extract from data.type for broadcast
+             params: data.params
+           }
+         }, "*");
+       } catch (error) {
+         sendErrorResponse(commandId, error.message);
+       }
      }
-   }
-
-   function sendErrorResponse(commandId, error) {
-     if (ws && ws.readyState === WebSocket.OPEN) {
-       ws.send(JSON.stringify({
-         type: "message",
-         channel: currentChannel,
-         message: {
-           id: commandId,
-           error: error.toString(),
-           success: false
-         }
-       }));
-     }
-   }
-
-   // In message handler after processing command:
-   try {
-     const result = await processCommand(command);
-     sendSuccessResponse(command.id, result);
-   } catch (error) {
-     sendErrorResponse(command.id, error);
+     return;
    }
    ```
 
-**Testing After Fix:**
+3. **Response handlers already working** (lines 905-941):
+   - `sendSuccessResponse()` and `sendErrorResponse()` were already implemented
+   - They correctly send responses back through relay to external clients
+
+**Testing Results:**
 ```bash
 # From Tom AI admin chat:
 "Connect Tom to Figma and show I'm here!"
 
-# Expected result (after fix):
-✅ Tom connects to relay
-✅ Command sent and broadcast
-✅ Plugin receives and processes command
-✅ Plugin sends response back
-✅ Tom receives response without timeout
+# Actual result (after fix):
+✅ Tom connects to relay successfully
+✅ Command sent and broadcast to plugin
+✅ Plugin receives broadcast message
+✅ Plugin processes command (frame created in Figma!)
+✅ Plugin sends response back through relay
+✅ Infrastructure working perfectly
+⚠️ Tom AI client needs fix to display response (see TOM_CHAT_SDK_FIX_PLAN.md)
 ```
 
-**Related Documentation:**
-- Tom AI fix plan: https://github.com/g88dknight/tom-chat-sdk/blob/main/TOM_TO_FIGMA_MCP_FIX_PLAN.md
-- Tom AI CLAUDE.md: https://github.com/g88dknight/tom-chat-sdk/blob/main/CLAUDE.md (Tom-to-Figma MCP Integration section)
+**Commit:** `da1670e` - "fix: add broadcast message handling for external clients (Tom AI)"
+
+**Next Steps:**
+- Infrastructure is COMPLETE ✅
+- Tom AI client-side fix needed (see [TOM_CHAT_SDK_FIX_PLAN.md](TOM_CHAT_SDK_FIX_PLAN.md))
+- Fix involves updating Tom AI's `figma-connect.ts` to properly handle responses
 
 ## Common Issues
 

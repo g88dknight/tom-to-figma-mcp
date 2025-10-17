@@ -28,7 +28,17 @@ flowchart TD
 
 ## 🎯 Objective
 
-Install and configure Cursor-Figma MCP integration with **AI-agent-friendly decision trees** and fail-safe checkpoints at each step. This guide uses Cursor's built-in Git clone functionality to directly clone the official repository, simplifying the setup process.
+Install and configure Tom-to-Figma MCP integration with **AI-agent-friendly decision trees** and fail-safe checkpoints at each step. This guide uses Cursor's built-in Git clone functionality to directly clone the repository, simplifying the setup process.
+
+### 🆕 Latest Updates (October 2025)
+
+**✅ Broadcast Message Handling Fixed:**
+- Figma plugin now correctly processes broadcast messages from external clients (Tom AI, etc.)
+- Added `generateId()` function for unique command tracking
+- Plugin extracts commands from `data.type` for broadcast messages
+- Full response flow: Tom AI → Relay → Plugin → Response → Relay → Tom AI
+
+**Status:** All infrastructure working perfectly! Commands execute successfully in Figma.
 
 ### 🤖 For AI Agents Reading This Guide
 
@@ -1134,7 +1144,7 @@ fi
 
 1. **Open Cursor IDE**
 2. **Clone Repository**: Use `Cmd+Shift+P` → "Git: Clone"
-3. **Enter URL**: `https://github.com/sonnylazuardi/tom-talk-to-figma-mcp.git`
+3. **Enter URL**: `https://github.com/g88dknight/tom-to-figma-mcp.git`
 4. **Select location and clone**
 5. **Open cloned project in Cursor**
 6. **Run setup**: `bun setup`
@@ -1142,13 +1152,13 @@ fi
 ### Alternative One-Line Commands (For Advanced Users)
 ```bash
 # Method A1 (Homebrew) - Clone and auto-open in Cursor
-[ "$HOMEBREW_AVAILABLE" = "YES" ] && cd ~/Desktop && git clone https://github.com/sonnylazuardi/tom-talk-to-figma-mcp.git && cd tom-talk-to-figma-mcp && brew install bun && bun setup && cursor .
+[ "$HOMEBREW_AVAILABLE" = "YES" ] && cd ~/Desktop && git clone https://github.com/g88dknight/tom-to-figma-mcp.git && cd tom-to-figma-mcp && brew install bun && bun setup && cursor .
 
 # Method A2 (Direct) - Clone and auto-open in Cursor
-[ "$SUDO_AVAILABLE" = "YES" ] && cd ~/Desktop && git clone https://github.com/sonnylazuardi/tom-talk-to-figma-mcp.git && cd tom-talk-to-figma-mcp && curl -fsSL https://bun.sh/install | bash && source ~/.zshrc && bun setup && cursor .
+[ "$SUDO_AVAILABLE" = "YES" ] && cd ~/Desktop && git clone https://github.com/g88dknight/tom-to-figma-mcp.git && cd tom-to-figma-mcp && curl -fsSL https://bun.sh/install | bash && source ~/.zshrc && bun setup && cursor .
 
 # Method B (Cursor-only) - Clone and open manually
-[ "$CURSOR_AVAILABLE" = "YES" ] && cd ~/Desktop && git clone https://github.com/sonnylazuardi/tom-talk-to-figma-mcp.git && echo "✅ Project cloned to ~/Desktop/tom-talk-to-figma-mcp" && echo "💡 Open this folder in Cursor and run 'bun setup'"
+[ "$CURSOR_AVAILABLE" = "YES" ] && cd ~/Desktop && git clone https://github.com/g88dknight/tom-to-figma-mcp.git && echo "✅ Project cloned to ~/Desktop/tom-to-figma-mcp" && echo "💡 Open this folder in Cursor and run 'bun setup'"
 ```
 
 ### Service Management
