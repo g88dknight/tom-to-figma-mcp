@@ -2,9 +2,33 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## CRITICAL RULES - ALWAYS FOLLOW
+
+### Git Workflow Rules
+1. **ONE COMMIT PER TASK**: Make only ONE commit and push after completing a series of related changes. Never make multiple commits for one task.
+2. **COMMIT ALL FILES**: Always include ALL updated files in commits, including:
+   - All modified source files
+   - Configuration files
+   - Any other changed files
+3. **Check before committing**: Always run `git status` and `git add` ALL modified files before committing
+
+### Documentation & Standards
+1. **Always reference official documentation**:
+   - MCP Protocol Specification
+   - Figma Plugin API
+   - WebSocket Protocol
+   - Bun runtime
+2. **Follow official guidelines** - Don't make assumptions, check docs first
+
 ## Project Overview
 
 Tom Talk to Figma MCP is a hosted-friendly Model Context Protocol (MCP) server and Figma plugin that enables IDE/agent communication with Figma documents. The system supports both local stdio workflows and cloud deployments with HTTP transport and WebSocket relay.
+
+**Current Status:**
+- ✅ MCP Server: Working (40 tools, HTTP + stdio modes)
+- ✅ WebSocket Relay: Working (Railway deployment, authentication)
+- ✅ Figma Plugin: Receives commands successfully
+- ⚠️ **In Progress**: Plugin response handling (see [Current Issues](#current-issues))
 
 ## Architecture
 
@@ -21,6 +45,19 @@ MCP Server (server.ts)
 Bun Relay (socket.ts)
     ↓ (plugin bridge)
 Figma Plugin (code.js)
+```
+
+**External Client Flow (Tom AI):**
+```
+Tom AI (figma-connect tool)
+    ↓ (WebSocket)
+Bun Relay (socket.ts)
+    ↓ (broadcast)
+Figma Plugin (code.js)
+    ↓ (response - pending)
+Bun Relay (socket.ts)
+    ↓ (WebSocket - pending)
+Tom AI
 ```
 
 ## Common Commands
@@ -84,8 +121,15 @@ All configuration uses environment variables with CLI flag overrides:
 
 ### Figma Plugin Settings (saved in plugin UI)
 - **WebSocket Server URL**: `wss://relay-production-bcbf.up.railway.app`
-- **Auth Token**: Same as `FIGMA_SOCKET_AUTH_TOKEN` (sent as `?token=...` in WebSocket URL)
-- **Channel Name**: Must match `FIGMA_SOCKET_CHANNEL` in MCP server config (default: `default`)
+- **Auth Token**: `5499da7c03663e72ab6d00589c1ac174eab791a2cff129f8bad43fef94a49311`
+- **Channel Name**: `default` (must match `FIGMA_SOCKET_CHANNEL` in MCP server config)
+
+**Current Production Values:**
+```bash
+FIGMA_SOCKET_URL="wss://relay-production-bcbf.up.railway.app"
+FIGMA_SOCKET_AUTH_TOKEN="5499da7c03663e72ab6d00589c1ac174eab791a2cff129f8bad43fef94a49311"
+FIGMA_SOCKET_CHANNEL="default"
+```
 
 CLI flags take precedence: `--mode=http`, `--figma-socket-url=wss://...`, `--port=3000`, etc.
 
@@ -195,34 +239,40 @@ Binary entry point: `dist/server.js` (see [package.json:8](package.json))
 
 ## Deployment Notes
 
-### Railway Deployment (Recommended)
+### Railway Deployment (Current Production Setup)
 
-Deploy **two separate services** in the same Railway project:
+**Currently deployed** as two separate services in the same Railway project:
 
 #### 1. WebSocket Relay Service
 ```bash
-# Start command
-bun socket
+# Service: relay-production-bcbf
+# URL: wss://relay-production-bcbf.up.railway.app
+# Start command: bun socket
 
-# Environment variables
+# Environment variables (actual production values):
 FIGMA_SOCKET_PORT=8080
-FIGMA_SOCKET_AUTH_TOKEN=your-secret-token-here
+FIGMA_SOCKET_AUTH_TOKEN=5499da7c03663e72ab6d00589c1ac174eab791a2cff129f8bad43fef94a49311
 ALLOWED_ORIGINS=*
 ```
 
+**Status:** ✅ Working - Relay receives connections and broadcasts messages correctly
+
 #### 2. MCP Server Service (HTTP mode)
 ```bash
-# Start command
-bun start
+# Service: mcp-server-production-4ddc
+# URL: https://mcp-server-production-4ddc.up.railway.app
+# Start command: bun start
 
-# Environment variables
+# Environment variables (actual production values):
 FIGMA_SOCKET_URL=wss://relay-production-bcbf.up.railway.app
 FIGMA_SOCKET_CHANNEL=default
-FIGMA_SOCKET_AUTH_TOKEN=your-secret-token-here
+FIGMA_SOCKET_AUTH_TOKEN=5499da7c03663e72ab6d00589c1ac174eab791a2cff129f8bad43fef94a49311
 PORT=3000
 HTTP_HOST=0.0.0.0
 ALLOWED_ORIGINS=*
 ```
+
+**Status:** ✅ Working - Server exposes 40 MCP tools via HTTP
 
 ### Local Development
 ```bash
@@ -240,6 +290,33 @@ bunx tom-talk-to-figma-mcp
 
 ## Connecting External AI Agents
 
+### For Tom AI (Current Production Setup):
+
+Tom AI connects via WebSocket relay (not directly to MCP server):
+
+**Tom AI Configuration (in Vercel):**
+```bash
+FIGMA_SOCKET_URL="wss://relay-production-bcbf.up.railway.app"
+FIGMA_SOCKET_AUTH_TOKEN="5499da7c03663e72ab6d00589c1ac174eab791a2cff129f8bad43fef94a49311"
+FIGMA_SOCKET_CHANNEL="default"
+```
+
+**Tom AI Repository:** https://github.com/g88dknight/tom-chat-sdk
+
+**Tom AI Tool:** [lib/ai/tools/figma-connect.ts](https://github.com/g88dknight/tom-chat-sdk/blob/main/lib/ai/tools/figma-connect.ts)
+
+**Message Flow:**
+1. Tom sends `{type: "join", channel: "default"}` to relay
+2. Tom sends `{type: "message", channel: "default", message: {type: "create_frame", params: {...}}}` to relay
+3. Relay broadcasts `{type: "broadcast", message: {...}, sender: "User", channel: "default"}` to plugin
+4. Plugin should respond with `{type: "message", channel: "default", message: {id: "...", result: {...}}}` (pending)
+
+**Status:**
+- ✅ Tom connects to relay with auth
+- ✅ Sends commands through relay to plugin
+- ✅ Plugin receives broadcast messages
+- ⚠️ Times out after 10s waiting for response (plugin fix pending)
+
 ### For OpenAI, Claude API, or other HTTP-based agents:
 
 **MCP Server URL:**
@@ -249,7 +326,7 @@ https://mcp-server-production-4ddc.up.railway.app
 
 **Authentication:**
 - Type: `Access token / API key`
-- Token: Same value as `FIGMA_SOCKET_AUTH_TOKEN`
+- Token: `5499da7c03663e72ab6d00589c1ac174eab791a2cff129f8bad43fef94a49311`
 
 **Example Configuration:**
 ```json
@@ -257,10 +334,12 @@ https://mcp-server-production-4ddc.up.railway.app
   "url": "https://mcp-server-production-4ddc.up.railway.app",
   "auth": {
     "type": "bearer",
-    "token": "your-secret-token-here"
+    "token": "5499da7c03663e72ab6d00589c1ac174eab791a2cff129f8bad43fef94a49311"
   }
 }
 ```
+
+**Status:** ✅ Working - HTTP-based agents can use all 40 MCP tools
 
 ### For Local IDE (Cursor, VSCode):
 
@@ -274,12 +353,14 @@ https://mcp-server-production-4ddc.up.railway.app
       "env": {
         "FIGMA_SOCKET_URL": "wss://relay-production-bcbf.up.railway.app",
         "FIGMA_SOCKET_CHANNEL": "default",
-        "FIGMA_SOCKET_AUTH_TOKEN": "your-secret-token-here"
+        "FIGMA_SOCKET_AUTH_TOKEN": "5499da7c03663e72ab6d00589c1ac174eab791a2cff129f8bad43fef94a49311"
       }
     }
   }
 }
 ```
+
+**Status:** ✅ Working - Local IDE can use all 40 MCP tools through relay
 
 ## Setup Instructions
 
@@ -292,22 +373,144 @@ https://mcp-server-production-4ddc.up.railway.app
 1. Run the "Tom to Figma" plugin in Figma
 2. Enter settings:
    - **WebSocket Server URL**: `wss://relay-production-bcbf.up.railway.app`
-   - **Auth Token**: Your secret token
+   - **Auth Token**: `5499da7c03663e72ab6d00589c1ac174eab791a2cff129f8bad43fef94a49311`
    - **Channel Name**: `default` (must match MCP server config)
 3. Click **Connect**
 4. Verify green status: "Connected to server at wss://... in channel: default"
 
 ### 3. Test Connection
+
+**For local MCP client (Cursor, VSCode):**
 Ask your AI agent:
 ```
 "Create a red rectangle 200x100 in Figma"
 ```
 
+**For external client (Tom AI):**
+Navigate to Tom AI admin chat (`/admin/chat`) and send:
+```
+"Connect Tom to Figma and show I'm here!"
+```
+
+**Expected Behavior (Current):**
+- ✅ Connection established
+- ✅ Command sent to relay
+- ✅ Plugin receives command
+- ⚠️ 10-second timeout (plugin doesn't respond yet)
+
+**Expected Behavior (After Fix):**
+- ✅ Connection established
+- ✅ Command sent to relay
+- ✅ Plugin receives command
+- ✅ Plugin processes command
+- ✅ Plugin sends response
+- ✅ Response received without timeout
+
+## Current Issues
+
+### ⚠️ Plugin Response Handling (In Progress)
+
+**Problem:**
+External clients (like Tom AI) can connect to relay, send commands to Figma plugin, but the plugin doesn't send responses back, causing 10-second timeouts.
+
+**Current Status:**
+- ✅ Tom AI → WebSocket Relay: Working perfectly with auth
+- ✅ Relay → Figma Plugin: Broadcasting commands correctly
+- ✅ Plugin receives commands: Commands are processed successfully
+- ❌ Plugin → Relay: Response mechanism not implemented
+- ❌ Relay → Tom AI: No response to forward back
+
+**Root Cause:**
+Plugin code in [src/cursor_mcp_plugin/ui.html](src/cursor_mcp_plugin/ui.html) needs 3 changes to handle broadcast messages and send responses:
+
+**Required Changes:**
+
+1. **Handle broadcast message type** (line ~120):
+   ```javascript
+   // BEFORE (wrong):
+   if (data.type === "command") { ... }
+
+   // AFTER (correct):
+   if (data.type === "command" || data.type === "broadcast") {
+     const command = data.type === "broadcast" ? data.message : data;
+     // ... process command
+   }
+   ```
+
+2. **Extract command correctly** (line ~125):
+   ```javascript
+   // BEFORE (wrong):
+   const commandType = data.command;
+
+   // AFTER (correct):
+   const commandType = command.type;  // Extract from command object
+   ```
+
+3. **Send response back** (after command execution):
+   ```javascript
+   // Add response handlers:
+   function sendSuccessResponse(commandId, result) {
+     if (ws && ws.readyState === WebSocket.OPEN) {
+       ws.send(JSON.stringify({
+         type: "message",
+         channel: currentChannel,
+         message: {
+           id: commandId,
+           result: result,
+           success: true
+         }
+       }));
+     }
+   }
+
+   function sendErrorResponse(commandId, error) {
+     if (ws && ws.readyState === WebSocket.OPEN) {
+       ws.send(JSON.stringify({
+         type: "message",
+         channel: currentChannel,
+         message: {
+           id: commandId,
+           error: error.toString(),
+           success: false
+         }
+       }));
+     }
+   }
+
+   // In message handler after processing command:
+   try {
+     const result = await processCommand(command);
+     sendSuccessResponse(command.id, result);
+   } catch (error) {
+     sendErrorResponse(command.id, error);
+   }
+   ```
+
+**Testing After Fix:**
+```bash
+# From Tom AI admin chat:
+"Connect Tom to Figma and show I'm here!"
+
+# Expected result (after fix):
+✅ Tom connects to relay
+✅ Command sent and broadcast
+✅ Plugin receives and processes command
+✅ Plugin sends response back
+✅ Tom receives response without timeout
+```
+
+**Related Documentation:**
+- Tom AI fix plan: https://github.com/g88dknight/tom-chat-sdk/blob/main/TOM_TO_FIGMA_MCP_FIX_PLAN.md
+- Tom AI CLAUDE.md: https://github.com/g88dknight/tom-chat-sdk/blob/main/CLAUDE.md (Tom-to-Figma MCP Integration section)
+
 ## Common Issues
 
 - **403 Forbidden**: Add origin to `ALLOWED_ORIGINS` in relay config
 - **401 Unauthorized**: Check that `FIGMA_SOCKET_AUTH_TOKEN` matches in all three places (relay, MCP server, Figma plugin)
+  - Current token: `5499da7c03663e72ab6d00589c1ac174eab791a2cff129f8bad43fef94a49311`
 - **Connection refused**: Relay defaults to `127.0.0.1`; use `--host 0.0.0.0` for containers
 - **Plugin stuck connecting**: Ensure `wss://` (not `ws://`) for hosted environments
 - **Channel mismatch**: Verify `FIGMA_SOCKET_CHANNEL` in MCP server matches "Channel Name" in Figma plugin
+  - Current channel: `default`
 - **"Please join a channel"**: Set `FIGMA_SOCKET_CHANNEL` environment variable or configure in plugin UI
+- **10-second timeout**: Plugin receives commands but doesn't send responses - see [Current Issues](#current-issues) for fix details

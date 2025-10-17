@@ -622,6 +622,11 @@
         channel: null,
       };
 
+      // Generate unique ID for broadcast commands
+      function generateId() {
+        return `cmd_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      }
+
       // UI Elements
       const socketInput = document.getElementById("socket-url");
       const authTokenInput = document.getElementById("auth-token");
@@ -860,6 +865,42 @@
 
       // Handle messages from the WebSocket
       async function handleSocketMessage(payload) {
+        console.log("[DEBUG] Received message:", JSON.stringify(payload));
+
+        // Handle broadcast messages from relay (external clients like Tom AI)
+        if (payload.type === "broadcast") {
+          const data = payload.message;
+          console.log("[DEBUG] Processing broadcast command:", data.type);
+
+          if (data.type) {
+            const commandId = generateId();
+            console.log(`[INFO] Executing broadcast command: ${data.type}, id: ${commandId}`);
+
+            try {
+              // Send the command to the plugin code
+              parent.postMessage(
+                {
+                  pluginMessage: {
+                    type: "execute-command",
+                    id: commandId,
+                    command: data.type,
+                    params: data.params,
+                  },
+                },
+                "*"
+              );
+            } catch (error) {
+              console.error("[ERROR] Failed to send broadcast command:", error);
+              sendErrorResponse(
+                commandId,
+                error.message || "Error executing broadcast command"
+              );
+            }
+          }
+          return;
+        }
+
+        // Handle direct messages (existing logic for MCP server)
         const data = payload.message;
         console.log("handleSocketMessage", data);
 
