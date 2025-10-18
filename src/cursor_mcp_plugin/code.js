@@ -715,6 +715,7 @@ async function createFrame(params) {
     name = "Frame",
     parentId,
     fillColor,
+    fills,
     strokeColor,
     strokeWeight,
     layoutMode = "NONE",
@@ -728,6 +729,7 @@ async function createFrame(params) {
     layoutSizingHorizontal = "FIXED",
     layoutSizingVertical = "FIXED",
     itemSpacing = 0,
+    children,
   } = params || {};
 
   const frame = figma.createFrame();
@@ -759,8 +761,31 @@ async function createFrame(params) {
     frame.itemSpacing = itemSpacing;
   }
 
-  // Set fill color if provided
-  if (fillColor) {
+  // Apply fills array (new format) - takes precedence over fillColor
+  if (fills && fills.length > 0) {
+    try {
+      const paintArray = fills.map((fill) => {
+        if (fill.type === "SOLID") {
+          return {
+            type: "SOLID",
+            color: {
+              r: parseFloat(fill.color.r) || 0,
+              g: parseFloat(fill.color.g) || 0,
+              b: parseFloat(fill.color.b) || 0,
+            },
+            opacity: parseFloat(fill.opacity) || 1,
+          };
+        }
+        // Support other fill types as needed
+        return fill;
+      });
+      frame.fills = paintArray;
+      console.log("[Figma Plugin] Applied fills:", paintArray);
+    } catch (error) {
+      console.error("[Figma Plugin] Failed to apply fills:", error);
+    }
+  } else if (fillColor) {
+    // Fallback to fillColor if fills array not provided
     const paintStyle = {
       type: "SOLID",
       color: {
@@ -806,6 +831,28 @@ async function createFrame(params) {
     figma.currentPage.appendChild(frame);
   }
 
+  // Create children (text elements, etc.) if provided
+  let childrenCreated = 0;
+  if (children && children.length > 0) {
+    for (const childParams of children) {
+      try {
+        if (childParams.type === "TEXT") {
+          const textNode = await createTextNode(childParams);
+          frame.appendChild(textNode);
+          childrenCreated++;
+          console.log("[Figma Plugin] Created text child:", textNode.characters);
+        }
+        // Add other node types as needed (rectangles, etc.)
+      } catch (error) {
+        console.error("[Figma Plugin] Failed to create child:", childParams, error);
+      }
+    }
+  }
+
+  // Select and zoom to the created frame
+  figma.currentPage.selection = [frame];
+  figma.viewport.scrollAndZoomIntoView([frame]);
+
   return {
     id: frame.id,
     name: frame.name,
@@ -819,7 +866,66 @@ async function createFrame(params) {
     layoutMode: frame.layoutMode,
     layoutWrap: frame.layoutWrap,
     parentId: frame.parent ? frame.parent.id : undefined,
+    childrenCreated: childrenCreated,
   };
+}
+
+// Helper function to create text nodes
+async function createTextNode(params) {
+  const text = figma.createText();
+
+  // Load font before setting text
+  try {
+    const fontFamily = params.fontFamily || "Inter";
+    const fontWeight = params.fontWeight || 400;
+
+    // Map font weight to style name
+    let fontStyle = "Regular";
+    if (fontWeight >= 700) {
+      fontStyle = "Bold";
+    } else if (fontWeight >= 600) {
+      fontStyle = "Semi Bold";
+    } else if (fontWeight >= 500) {
+      fontStyle = "Medium";
+    }
+
+    await figma.loadFontAsync({
+      family: fontFamily,
+      style: fontStyle,
+    });
+
+    text.fontName = { family: fontFamily, style: fontStyle };
+  } catch (fontError) {
+    // Fallback to Inter Regular
+    console.warn("[Figma Plugin] Failed to load font, using Inter Regular:", fontError);
+    await figma.loadFontAsync({ family: "Inter", style: "Regular" });
+    text.fontName = { family: "Inter", style: "Regular" };
+  }
+
+  // Set text content
+  text.characters = params.characters || "";
+
+  // Set text properties
+  if (params.fontSize) text.fontSize = params.fontSize;
+  if (params.x !== undefined) text.x = params.x;
+  if (params.y !== undefined) text.y = params.y;
+
+  // Set text color if provided
+  if (params.color) {
+    text.fills = [
+      {
+        type: "SOLID",
+        color: {
+          r: parseFloat(params.color.r) || 0,
+          g: parseFloat(params.color.g) || 0,
+          b: parseFloat(params.color.b) || 0,
+        },
+        opacity: parseFloat(params.color.opacity) || parseFloat(params.color.a) || 1,
+      },
+    ];
+  }
+
+  return text;
 }
 
 async function createText(params) {
