@@ -3271,12 +3271,13 @@ async function startHttpTransport(): Promise<void> {
     allowedOrigins: allowedOrigins,
   });
 
-  const transport = new StreamableHTTPServerTransport({
+  // Create a global transport instance for POST-based MCP requests
+  // SSE connections will create their own per-connection transport instances
+  const postTransport = new StreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
   });
 
-  await server.connect(transport);
-  // await transport.start(); // Already started by server.connect()
+  await server.connect(postTransport);
 
   const httpServer = createServer(async (req, res) => {
     try {
@@ -3322,13 +3323,20 @@ async function startHttpTransport(): Promise<void> {
           return;
         }
 
-        logger.info('[SSE] SSE connection established, delegating to transport');
+        logger.info('[SSE] Creating new transport instance for this connection');
 
-        // Delegate to StreamableHTTPServerTransport's handler
-        // The transport will handle SSE headers and connection setup
+        // Create a new transport instance for each SSE connection
+        // This allows multiple concurrent connections in serverless environments
+        // Each serverless function instance can now have its own SSE stream
         try {
-          await transport.handleRequest(req, res);
-          logger.info('[SSE] SSE connection handled by transport');
+          const connectionTransport = new StreamableHTTPServerTransport({
+            sessionIdGenerator: undefined,  // Stateless mode
+          });
+
+          await server.connect(connectionTransport);
+          await connectionTransport.handleRequest(req, res);
+
+          logger.info('[SSE] SSE connection handled successfully');
         } catch (error) {
           logger.error(`[SSE] Error handling SSE connection: ${error instanceof Error ? error.message : String(error)}`);
           if (!res.writableEnded) {
@@ -3380,7 +3388,8 @@ async function startHttpTransport(): Promise<void> {
           }
         }
 
-        await transport.handleRequest(req, res);
+        // Use the global postTransport for POST-based MCP requests
+        await postTransport.handleRequest(req, res);
         return;
       }
 
@@ -3420,7 +3429,7 @@ async function startHttpTransport(): Promise<void> {
     shuttingDown = true;
     logger.info(`Received ${signal}. Shutting down Tom Talk to Figma MCP HTTP server...`);
 
-    await transport.close().catch((error) => {
+    await postTransport.close().catch((error: Error | unknown) => {
       logger.error(`Error closing HTTP transport: ${error instanceof Error ? error.message : String(error)}`);
     });
 
