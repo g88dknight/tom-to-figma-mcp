@@ -3289,6 +3289,55 @@ async function startHttpTransport(): Promise<void> {
       const originHost = req.headers.host ?? `${httpHost}:${httpPort}`;
       const requestUrl = new URL(req.url, `http://${originHost}`);
 
+      logger.debug(`Incoming request: ${req.method} ${requestUrl.pathname}`);
+
+      // ========================================
+      // CORS Preflight Support
+      // ========================================
+      if (req.method === 'OPTIONS') {
+        res.writeHead(200, {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Authorization, X-MCP-Channel, Content-Type',
+          'Access-Control-Max-Age': '86400',
+        });
+        res.end();
+        return;
+      }
+
+      // ========================================
+      // SSE Endpoint for AI SDK MCP Client
+      // ========================================
+      if (requestUrl.pathname === '/sse') {
+        logger.info('[SSE] New SSE connection request');
+
+        // Verify authentication
+        const authHeader = req.headers.authorization;
+        const expectedToken = process.env.FIGMA_SOCKET_AUTH_TOKEN;
+
+        if (expectedToken && authHeader !== `Bearer ${expectedToken}`) {
+          logger.warn('[SSE] Unauthorized SSE connection attempt');
+          res.writeHead(401, { "content-type": "application/json" });
+          res.end(JSON.stringify({ error: "Unauthorized" }));
+          return;
+        }
+
+        logger.info('[SSE] SSE connection established, delegating to transport');
+
+        // Delegate to StreamableHTTPServerTransport's handler
+        // The transport will handle SSE headers and connection setup
+        try {
+          await transport.handleRequest(req, res);
+          logger.info('[SSE] SSE connection handled by transport');
+        } catch (error) {
+          logger.error(`[SSE] Error handling SSE connection: ${error instanceof Error ? error.message : String(error)}`);
+          if (!res.writableEnded) {
+            res.end();
+          }
+        }
+        return;
+      }
+
       // Handle REST API routes (health, /figma/*)
       if (requestUrl.pathname === "/health" || requestUrl.pathname.startsWith("/figma/")) {
         // Use express app to handle REST API routes

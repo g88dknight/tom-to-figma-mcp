@@ -271,6 +271,57 @@ curl -X POST https://mcp-server-production-4ddc.up.railway.app/figma/set-text \
 
 **📖 Full REST API documentation:** See [TESTING.md](TESTING.md)
 
+## 🔄 SSE Endpoint for AI SDK Integration
+
+The MCP server exposes an SSE (Server-Sent Events) endpoint for integration with Vercel AI SDK's MCP client.
+
+### Endpoint
+
+```
+GET /sse
+```
+
+### Headers
+
+```
+Accept: text/event-stream  (required for SSE)
+Authorization: Bearer <FIGMA_SOCKET_AUTH_TOKEN>
+X-MCP-Channel: <channel-name>  (optional, defaults to "default")
+```
+
+### Example Usage with AI SDK
+
+```typescript
+import { experimental_createMCPClient as createMCPClient } from 'ai';
+
+const mcpClient = await createMCPClient({
+  name: 'tom-to-figma',
+  transport: {
+    type: 'sse',
+    url: 'https://mcp-server-production-4ddc.up.railway.app/sse',
+    headers: {
+      Authorization: 'Bearer <your-token>',
+      'X-MCP-Channel': 'default',
+    },
+  },
+});
+
+const tools = await mcpClient.tools();
+console.log(`Loaded ${Object.keys(tools).length} tools`);
+```
+
+### Available Tools via SSE
+
+The server exposes 40+ Figma manipulation tools via MCP:
+- Document info (`get_document_info`, `get_selection`, `get_node_info`)
+- Create elements (`create_frame`, `create_rectangle`, `create_text`)
+- Modify nodes (`set_text_content`, `set_fill_color`, `move_node`, `resize_node`)
+- Layout (`set_layout_mode`, `set_padding`, `set_item_spacing`)
+- Export (`export_node_as_image`)
+- And 30+ more...
+
+See [server.ts](src/talk_to_figma_mcp/server.ts) for the full tool list.
+
 ## 📝 Available MCP Tools (40+)
 
 ### Document & Selection
