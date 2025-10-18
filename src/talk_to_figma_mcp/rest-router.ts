@@ -1,7 +1,6 @@
 import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import { checkRelayHeartbeat, sendToPlugin } from "./relay-client.js";
-import { executeOperation, executeBatchOperations, FigmaOperation } from "./figma-operations.js";
 
 export interface RestRouterConfig {
   authToken?: string;
@@ -138,8 +137,8 @@ export function createRestRouter(config: RestRouterConfig): express.Application 
       }
 
       // Send to plugin
-      const result = await executeOperation(channel, fileKey, {
-        type: "set_text",
+      const result = await sendToPlugin(channel, {
+        type: "set_text_content",
         nodeId,
         text,
       });
@@ -175,10 +174,13 @@ export function createRestRouter(config: RestRouterConfig): express.Application 
       }
 
       // Send to plugin
-      const result = await executeOperation(channel, fileKey, {
+      const result = await sendToPlugin(channel, {
         type: "set_fill_color",
         nodeId,
-        color,
+        r: color.r,
+        g: color.g,
+        b: color.b,
+        a: color.a,
       });
 
       res.json(result);
@@ -212,10 +214,13 @@ export function createRestRouter(config: RestRouterConfig): express.Application 
       }
 
       // Send to plugin
-      const result = await executeOperation(channel, fileKey, {
+      const result = await sendToPlugin(channel, {
         type: "set_stroke_color",
         nodeId,
-        color,
+        r: color.r,
+        g: color.g,
+        b: color.b,
+        a: color.a,
         weight: weight || 1,
       });
 
@@ -250,7 +255,7 @@ export function createRestRouter(config: RestRouterConfig): express.Application 
       }
 
       // Send to plugin
-      const result = await executeOperation(channel, fileKey, {
+      const result = await sendToPlugin(channel, {
         type: "clone_node",
         nodeId,
         x,
@@ -325,12 +330,19 @@ export function createRestRouter(config: RestRouterConfig): express.Application 
         });
       }
 
-      // Execute operations
-      const results = await executeBatchOperations(
-        channel,
-        fileKey,
-        operations as FigmaOperation[]
-      );
+      // Execute operations sequentially
+      const results: any[] = [];
+      for (const operation of operations) {
+        try {
+          const result = await sendToPlugin(channel, operation);
+          results.push({ success: true, result });
+        } catch (error) {
+          results.push({
+            success: false,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
 
       res.json({ results });
     } catch (error) {
